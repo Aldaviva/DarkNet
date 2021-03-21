@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 using System.Windows;
-using System.Windows.Interop;
 
 namespace darknet_wpf {
 
@@ -29,7 +28,7 @@ namespace darknet_wpf {
             Console.WriteLine("refreshImmersiveColorPolicyState");
         }
 
-        internal static void refreshTitleBarThemeColor(IntPtr window) {
+        private static void refreshTitleBarThemeColor(IntPtr window) {
             // bool isDarkMode = isDarkModeAllowedForWindow(window) && shouldAppsUseDarkMode() && !isHighContrast();
             bool isDarkMode = true;
             if (!isDarkModeAllowedForWindow(window)) {
@@ -47,29 +46,27 @@ namespace darknet_wpf {
 
             try {
                 // Windows 10 1903 and later
-                //might need to pass pointer to struct instead of struct itself
-                IntPtr attributeValueBuffer = Marshal.AllocCoTaskMem(Marshal.SizeOf<int>());
-                Marshal.WriteInt32(attributeValueBuffer, Convert.ToInt32(true));
+                int    attributeValueBufferSize = Marshal.SizeOf<bool>();
+                IntPtr attributeValueBuffer     = Marshal.AllocCoTaskMem(attributeValueBufferSize);
+                Marshal.WriteInt32(attributeValueBuffer, Convert.ToInt32(isDarkMode));
 
-                var    windowCompositionAttributeData   = new WindowCompositionAttributeData(WindowCompositionAttribute.WCA_USEDARKMODECOLORS, attributeValueBuffer);
-                IntPtr windowCompositionAttributeBuffer = Marshal.AllocCoTaskMem(Marshal.SizeOf(windowCompositionAttributeData));
-                Marshal.StructureToPtr(windowCompositionAttributeData, windowCompositionAttributeBuffer, false);
-                bool success = setWindowCompositionAttribute(window, windowCompositionAttributeBuffer);
-                // setWindowCompositionAttribute(window, windowCompositionAttributeData);
+                var windowCompositionAttributeData = new WindowCompositionAttributeData(WindowCompositionAttribute.WCA_USEDARKMODECOLORS, attributeValueBuffer, attributeValueBufferSize);
+
+                bool success = setWindowCompositionAttribute(window, ref windowCompositionAttributeData);
                 Console.WriteLine($"setWindowCompositionAttribute [success={success}, lastError={Marshal.GetLastWin32Error()}]");
 
                 // const int WIN10_20H1_BUILD = 19041;
                 // DwmWindowAttribute useImmersiveDarkMode = Environment.OSVersion.Version.Build < WIN10_20H1_BUILD
                 //     ? DwmWindowAttribute.DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1
                 //     : DwmWindowAttribute.DWMWA_USE_IMMERSIVE_DARK_MODE;
-                // int result = dwmSetWindowAttribute(window, useImmersiveDarkMode, attributeValueBuffer, Marshal.SizeOf<int>());
+                // int result = dwmSetWindowAttribute(window, useImmersiveDarkMode, attributeValueBuffer, Marshal.SizeOf<bool>());
                 // Console.WriteLine($"dwmSetWindowAttribute [result={Marshal.GetExceptionForHR(result)}]");
                 Marshal.FreeCoTaskMem(attributeValueBuffer);
-                Marshal.FreeCoTaskMem(windowCompositionAttributeBuffer);
+                // Marshal.FreeCoTaskMem(windowCompositionAttributeBuffer);
 
             } catch (Exception e) when (!(e is OutOfMemoryException)) {
-                Console.WriteLine(e);
                 // Windows 10 1809 only
+                Console.WriteLine(e);
                 //not sure if the actual address of the bool is needed, or to just make a pointer to address 1 or 0
                 bool success = setProp(window, "UseImmersiveDarkModeColors", new IntPtr(Convert.ToInt64(isDarkMode)));
                 Console.WriteLine($"setProp [success={success}]");
@@ -79,19 +76,22 @@ namespace darknet_wpf {
         private static bool isHighContrast() => SystemParameters.HighContrast;
 
         /// <summary>
-        ///     call this after showing a window
+        ///     call this after creating but before showing a window, such as WPF's Window.OnSourceInitialized or Forms' Form.Load
+        ///     ~~if !window.IsInitialized, it's probably too early, because it gets set to true in OnInitialized, which is before OnSourceInitialized~~
+        ///     if window.Visibility==VISIBLE && WindowPlacement.ShowCmd == SW_HIDE (or whatever), it was definitely called too early
+        ///     if GetWindowInfo().style.WS_VISIBLE == true then it was called too late
         /// </summary>
-        /// <param name="window"></param>
+        /// <param name="windowHandle"></param>
         /// <param name="isDarkModeAllowed"></param>
-        public static void setDarkModeAllowedForWindow(Window window, bool isDarkModeAllowed) {
-            if (!window.IsVisible) {
-                throw new InvalidOperationException("Make sure the window is visible before calling this method. Try calling Window.Show() first.");
-            }
+        public static void setDarkModeAllowedForWindow(IntPtr windowHandle, bool isDarkModeAllowed) {
+            // if (!window.IsVisible) {
+            //     throw new InvalidOperationException("Make sure the window is visible before calling this method. Try calling Window.Show() first.");
+            // }
 
-            IntPtr windowHandle = new WindowInteropHelper(window).Handle;
+            // IntPtr windowHandle = new WindowInteropHelper(window).Handle;
 
-            bool wasDarkModeAlreadyAllowed = allowDarkModeForWindow(windowHandle, isDarkModeAllowed);
-            Console.WriteLine($"allowDarkModeForWindow [wasDarkModeAlreadyAllowed={wasDarkModeAlreadyAllowed}]");
+            bool wasDarkModeAlreadyAllowedForWindow = allowDarkModeForWindow(windowHandle, isDarkModeAllowed);
+            Console.WriteLine($"allowDarkModeForWindow [wasDarkModeAlreadyAllowed={wasDarkModeAlreadyAllowedForWindow}]");
             // setWindowTheme(windowHandle, isDarkModeAllowed ? "DarkMode_Explorer" : "", null);
             // uint isHighContrast = getIsImmersiveColorUsingHighContrast(ImmersiveHighContrastCacheMode.IHCM_REFRESH);
             // Console.WriteLine($"getIsImmersiveColorUsingHighContrast={isHighContrast}");
@@ -116,16 +116,18 @@ namespace darknet_wpf {
             // window.InvalidateMeasure();
             // window.InvalidateProperty(FrameworkElement.WidthProperty);
             // window.InvalidateProperty(FrameworkElement.HeightProperty);
-            //TODO there must be a better way to invalidate DWM's non-client area of this window and force it to repaint
-            Visibility originalVisibility = window.Visibility;
-            window.Visibility = Visibility.Hidden;
-            window.Visibility = originalVisibility;
+            // // there must be a better way to invalidate DWM's non-client area of this window and force it to repaint
+            // if (window.Visibility == Visibility.Visible) {
+            //     window.Visibility = Visibility.Hidden;
+            //     window.Visibility = Visibility.Visible;
+            // }
+
             // double originalHeight = window.Height;
             // window.Height--;
             // window.Height = originalHeight;
         }
 
-        //these ordinals seem to be decimal
+        //these ordinals are decimal
         [DllImport("uxtheme.dll", EntryPoint = "#104")]
         private static extern void refreshImmersiveColorPolicyState();
 
@@ -143,9 +145,6 @@ namespace darknet_wpf {
         [DllImport("uxtheme.dll", EntryPoint = "#135", SetLastError = true)]
         private static extern bool allowDarkModeForApp(bool isDarkModeAllowed);
 
-        [DllImport("uxtheme.dll", EntryPoint = "#136")]
-        private static extern void flushMenuThemes();
-
         [DllImport("uxtheme.dll", EntryPoint = "#137", SetLastError = true)]
         private static extern bool isDarkModeAllowedForWindow(IntPtr window);
 
@@ -155,14 +154,8 @@ namespace darknet_wpf {
         [DllImport("uxtheme.dll", EntryPoint = "#139", SetLastError = true)]
         private static extern bool isDarkModeAllowedForApp();
 
-        [DllImport("uxtheme.dll", EntryPoint = "#106", SetLastError = true)]
-        private static extern uint getIsImmersiveColorUsingHighContrast(ImmersiveHighContrastCacheMode cacheMode);
-
         [DllImport("user32.dll", SetLastError = true, EntryPoint = "SetWindowCompositionAttribute")]
-        private static extern bool setWindowCompositionAttribute(IntPtr window, IntPtr windowCompositionAttribute);
-
-        [DllImport("user32.dll", SetLastError = true, EntryPoint = "SetWindowCompositionAttribute")]
-        private static extern bool setWindowCompositionAttribute(IntPtr window, WindowCompositionAttributeData windowCompositionAttribute);
+        private static extern bool setWindowCompositionAttribute(IntPtr window, ref WindowCompositionAttributeData windowCompositionAttribute);
 
         [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto, EntryPoint = "SetProp")]
         private static extern bool setProp(IntPtr window, string propertyName, IntPtr propertyValue);
@@ -170,37 +163,19 @@ namespace darknet_wpf {
         [DllImport("dwmapi.dll", EntryPoint = "DwmSetWindowAttribute", SetLastError = false)]
         private static extern int dwmSetWindowAttribute(IntPtr window, DwmWindowAttribute attribute, IntPtr valuePointer, int valuePointerSize);
 
-        [DllImport("user32.dll", EntryPoint = "InvalidateRect")]
-        private static extern bool invalidateRect(IntPtr window, IntPtr rectangle, bool erase);
-
-        [DllImport("user32.dll", EntryPoint = "UpdateWindow")]
-        private static extern bool updateWindow(IntPtr window);
-
-        [DllImport("user32.dll", EntryPoint = "RedrawWindow")]
-        private static extern bool redrawWindow(IntPtr window, IntPtr lprcUpdate, IntPtr hrgnUpdate, RedrawWindowFlags flags);
-
-        [DllImport("uxtheme.dll", EntryPoint = "SetWindowTheme", CharSet = CharSet.Auto)]
-        private static extern uint setWindowTheme(IntPtr window, string applicationName, string clsidNames);
-
-        // [DllImport("kernel32", CharSet = CharSet.Ansi, ExactSpelling = true, SetLastError = true)]
-        // private static extern IntPtr GetProcAddress(IntPtr hModule, string procName);
-        //
-        // [DllImport("kernel32", SetLastError = true, ExactSpelling = true)]
-        // private static extern IntPtr GetProcAddress(IntPtr hModule, IntPtr ordinal);
-
     }
 
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+    [StructLayout(LayoutKind.Sequential)]
     internal readonly struct WindowCompositionAttributeData {
 
         internal readonly WindowCompositionAttribute attribute;
         internal readonly IntPtr                     data;
         internal readonly int                        size;
 
-        public WindowCompositionAttributeData(WindowCompositionAttribute attribute, IntPtr data) {
+        public WindowCompositionAttributeData(WindowCompositionAttribute attribute, IntPtr data, int size) {
             this.attribute = attribute;
             this.data      = data;
-            size           = Marshal.SizeOf<int>();
+            this.size      = size;
         }
 
     }
@@ -267,64 +242,6 @@ namespace darknet_wpf {
         FORCE_DARK,
         FORCE_LIGHT,
         MAX
-
-    }
-
-    [Flags]
-    internal enum RedrawWindowFlags: uint {
-
-        /// <summary>
-        ///     Invalidates the rectangle or region that you specify in lprcUpdate or hrgnUpdate.
-        ///     You can set only one of these parameters to a non-NULL value. If both are NULL, RDW_INVALIDATE invalidates the entire window.
-        /// </summary>
-        Invalidate = 0x1,
-
-        /// <summary>Causes the OS to post a WM_PAINT message to the window regardless of whether a portion of the window is invalid.</summary>
-        InternalPaint = 0x2,
-
-        /// <summary>
-        ///     Causes the window to receive a WM_ERASEBKGND message when the window is repainted.
-        ///     Specify this value in combination with the RDW_INVALIDATE value; otherwise, RDW_ERASE has no effect.
-        /// </summary>
-        Erase = 0x4,
-
-        /// <summary>
-        ///     Validates the rectangle or region that you specify in lprcUpdate or hrgnUpdate.
-        ///     You can set only one of these parameters to a non-NULL value. If both are NULL, RDW_VALIDATE validates the entire window.
-        ///     This value does not affect internal WM_PAINT messages.
-        /// </summary>
-        Validate = 0x8,
-
-        NoInternalPaint = 0x10,
-
-        /// <summary>Suppresses any pending WM_ERASEBKGND messages.</summary>
-        NoErase = 0x20,
-
-        /// <summary>Excludes child windows, if any, from the repainting operation.</summary>
-        NoChildren = 0x40,
-
-        /// <summary>Includes child windows, if any, in the repainting operation.</summary>
-        AllChildren = 0x80,
-
-        /// <summary>Causes the affected windows, which you specify by setting the RDW_ALLCHILDREN and RDW_NOCHILDREN values, to receive WM_ERASEBKGND and WM_PAINT messages before the RedrawWindow returns, if necessary.</summary>
-        UpdateNow = 0x100,
-
-        /// <summary>
-        ///     Causes the affected windows, which you specify by setting the RDW_ALLCHILDREN and RDW_NOCHILDREN values, to receive WM_ERASEBKGND messages before RedrawWindow returns, if necessary.
-        ///     The affected windows receive WM_PAINT messages at the ordinary time.
-        /// </summary>
-        EraseNow = 0x200,
-
-        Frame = 0x400,
-
-        NoFrame = 0x800
-
-    }
-
-    internal enum ImmersiveHighContrastCacheMode {
-
-        IHCM_USE_CACHED_VALUE,
-        IHCM_REFRESH
 
     }
 
