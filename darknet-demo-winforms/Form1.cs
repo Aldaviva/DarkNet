@@ -1,6 +1,6 @@
 ﻿using System.Windows.Forms;
 
-namespace darknet_winforms {
+namespace darknet_demo_winforms {
 
     public partial class Form1: Form {
 

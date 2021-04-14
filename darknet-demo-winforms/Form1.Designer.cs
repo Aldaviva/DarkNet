@@ -1,5 +1,5 @@
 ﻿
-namespace darknet_winforms
+namespace darknet_demo_winforms
 {
     partial class Form1
     {
@@ -46,10 +46,12 @@ namespace darknet_winforms
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(19)))), ((int)(((byte)(19)))));
             this.ClientSize = new System.Drawing.Size(800, 450);
             this.Controls.Add(this.label1);
+            this.ForeColor = System.Drawing.Color.White;
             this.Name = "Form1";
-            this.Text = "Form1";
+            this.Text = "Windows Forms demonstration";
             this.ResumeLayout(false);
             this.PerformLayout();
 

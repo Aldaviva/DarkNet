@@ -5,9 +5,9 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{F1BBA11A-E333-43D4-936E-F4C53B9AEE19}</ProjectGuid>
-    <OutputType>Exe</OutputType>
-    <RootNamespace>darknet_winforms</RootNamespace>
-    <AssemblyName>darknet-winforms</AssemblyName>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>darknet_demo_winforms</RootNamespace>
+    <AssemblyName>darknet-demo-winforms</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -22,6 +22,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <LangVersion>latest</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -31,6 +32,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <LangVersion>latest</LangVersion>
   </PropertyGroup>
   <PropertyGroup>
     <StartupObject />
@@ -60,9 +62,9 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\darknet-wpf\darknet-wpf.csproj">
-      <Project>{a626852b-6c05-4d42-9e60-45ea30d35513}</Project>
-      <Name>darknet-wpf</Name>
+    <ProjectReference Include="..\darknet\DarkNet.csproj">
+      <Project>{8f367ec7-f0f9-4b96-8793-91f06ac78320}</Project>
+      <Name>DarkNet</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

@@ -1,0 +1,53 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+
+  <PropertyGroup>
+    <Authors>Ben Hutchison</Authors>
+    <Company>Ben Hutchison</Company>
+    <Configurations>Debug;Release-Forms;Release-WPF</Configurations>
+    <Copyright>2021 Ben Hutchison</Copyright>
+    <Description>Make WPF and Windows Forms title bars dark in Windows 10.</Description>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IncludeSource>true</IncludeSource>
+    <IncludeSymbols>true</IncludeSymbols>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/Aldaviva/DarkNet</PackageProjectUrl>
+    <PackageTags>dark dark-mode darkmode</PackageTags>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/Aldaviva/DarkNet.git</RepositoryUrl>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <TargetFrameworks>netcoreapp3.1;net472</TargetFrameworks>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup Condition="$(Configuration.EndsWith('-Forms'))">
+    <Compile Remove="wpf\**" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$(Configuration.EndsWith('-WPF'))">
+    <Compile Remove="forms\**" />
+  </ItemGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>DarkNet</PackageId>
+    <Product>DarkNet</Product>
+    <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(Configuration.EndsWith('-Forms'))">
+    <PackageId>DarkNet-Forms</PackageId>
+    <Product>DarkNet-Forms</Product>
+    <UseWindowsForms>true</UseWindowsForms>
+    <PackageTags>$(PackageTags) forms winforms</PackageTags>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(Configuration.EndsWith('-WPF'))">
+    <PackageId>DarkNet-WPF</PackageId>
+    <Product>DarkNet-WPF</Product>
+    <UseWPF>true</UseWPF>
+    <PackageTags>$(PackageTags) wpf</PackageTags>
+  </PropertyGroup>
+
+</Project>
