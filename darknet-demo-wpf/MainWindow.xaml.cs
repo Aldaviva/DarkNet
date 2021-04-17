@@ -1,4 +1,4 @@
-﻿namespace darknet_wpf {
+﻿namespace darknet_demo_wpf {
 
     public partial class MainWindow {
 

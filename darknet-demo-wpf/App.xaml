@@ -1,7 +1,6 @@
-﻿<Application x:Class="darknet_wpf.App"
+﻿<Application x:Class="darknet_demo_wpf.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:darknet_wpf"
              Startup="App_OnStartup">
     <Application.Resources>
          

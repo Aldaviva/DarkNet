@@ -1,9 +1,8 @@
-﻿<Window x:Class="darknet_wpf.MainWindow"
+﻿<Window x:Class="darknet_demo_wpf.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:darknet_wpf"
         mc:Ignorable="d"
         Title="Windows Presentation Foundation demonstration" Height="450" Width="800" Background="#FF131313">
     <Grid>

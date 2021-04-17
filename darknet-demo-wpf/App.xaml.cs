@@ -3,7 +3,7 @@ using darknet.wpf;
 
 #nullable enable
 
-namespace darknet_wpf {
+namespace darknet_demo_wpf {
 
     public partial class App {
 
@@ -14,7 +14,6 @@ namespace darknet_wpf {
             window.SourceInitialized += (_, _) => { DarkNet.SetDarkModeAllowedForWindow(window, true); };
 
             window.Show();
-
         }
 
     }

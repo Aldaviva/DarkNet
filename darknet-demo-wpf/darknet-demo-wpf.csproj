@@ -6,8 +6,8 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{A626852B-6C05-4D42-9E60-45EA30D35513}</ProjectGuid>
     <OutputType>WinExe</OutputType>
-    <RootNamespace>darknet_wpf</RootNamespace>
-    <AssemblyName>darknet-wpf</AssemblyName>
+    <RootNamespace>darknet_demo_wpf</RootNamespace>
+    <AssemblyName>darknet-demo-wpf</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
@@ -82,10 +82,12 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\darknet\DarkNet.csproj">
-      <Project>{8f367ec7-f0f9-4b96-8793-91f06ac78320}</Project>
-      <Name>DarkNet</Name>
-    </ProjectReference>
+    <PackageReference Include="DarkNet-WPF">
+      <Version>1.0.0</Version>
+    </PackageReference>
+    <PackageReference Include="ILRepack.Lib.MSBuild.Task">
+      <Version>2.0.18.2</Version>
+    </PackageReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
