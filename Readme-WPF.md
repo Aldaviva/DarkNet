@@ -132,6 +132,6 @@ You can also clone this repository and build the `darknet-demo-wpf` project your
 ## Acknowledgements
 
 - [Milan Burda](https://github.com/miniak) for explaining how to add this in Electron ([electron/electron #23479: [Windows] Title bar does not respect dark mode](https://github.com/electron/electron/issues/23479))
-- [dyasta](https://stackoverflow.com/users/191514/dyasta) for an [exaplanation on Stack Overflow](https://stackoverflow.com/a/58547831/979493)
+- [dyasta](https://stackoverflow.com/users/191514/dyasta) for [an explanation on Stack Overflow](https://stackoverflow.com/a/58547831/979493)
 - [Richard Yu](https://github.com/ysc3839) for [implementing this in a C++ library](https://github.com/ysc3839/win32-darkmode)
 - [Berrysoft](https://github.com/Berrysoft) for [implementing this in Mintty, the Cygwin Terminal emulator](https://github.com/mintty/mintty/issues/983) ([further discussion](https://github.com/mintty/mintty/pull/984))
