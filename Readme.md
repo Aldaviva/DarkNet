@@ -117,6 +117,14 @@ You must also perform this step for all subsequent windows you show in your appl
 <a id="complete-example"></a>
 #### Complete example
 
+```xaml
+<Application x:Class="my_namespace.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Startup="App_OnStartup">
+</Application>
+```
+
 ```cs
 public partial class App: Application {
 
