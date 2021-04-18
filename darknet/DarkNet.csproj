@@ -17,8 +17,8 @@
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/Aldaviva/DarkNet.git</RepositoryUrl>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <TargetFrameworks>netcoreapp3.1;net472</TargetFrameworks>
-    <Version>1.0.0</Version>
+    <TargetFrameworks>netcoreapp3.1;net40</TargetFrameworks>
+    <Version>2.0.0</Version>
   </PropertyGroup>
 
   <ItemGroup Condition="$(Configuration.EndsWith('-Forms'))">

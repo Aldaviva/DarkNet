@@ -1,54 +1,69 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
+using Microsoft.Win32;
 
 namespace darknet {
 
-    internal static class DarkMode {
+    internal class DarkMode {
+
+        private bool  _preferredSystemDarkModeCached;
+        private Mode? _preferredAppMode;
+
+        private readonly ConcurrentDictionary<IntPtr, Mode> PreferredWindowModes = new();
+
+        public bool IsSystemDarkMode => IsSystemModeDark();
 
         /// <summary>call this before showing any windows in your app</summary>
         /// <param name="isDarkModeAllowed"></param>
-        public static void SetDarkModeAllowedForProcess(bool isDarkModeAllowed) {
+        public void SetModeForProcess(Mode mode) {
+            _preferredAppMode = mode;
             try {
-                bool wasDarkMode = setPreferredAppMode(isDarkModeAllowed ? AppMode.AllowDark : AppMode.Default);
+                bool wasDarkMode = SetPreferredAppMode(AppMode.AllowDark);
                 // Console.WriteLine($"setPreferredAppMode [wasDarkMode={wasDarkMode}, last error={Marshal.GetLastWin32Error()}]");
             } catch (Exception e1) when (!(e1 is OutOfMemoryException)) {
                 try {
-                    // Console.WriteLine(e1);
-                    bool success = allowDarkModeForApp(isDarkModeAllowed);
+                    bool success = AllowDarkModeForApp(true);
                     // Console.WriteLine($"allowDarkModeForApp [success={success}]");
                 } catch (Exception e2) when (!(e2 is OutOfMemoryException)) {
                     throw new Exception("Failed to set dark mode for process", e1); //TODO throw a different class
                 }
             }
 
-            refreshImmersiveColorPolicyState();
-            // Console.WriteLine("refreshImmersiveColorPolicyState");
+            // refreshImmersiveColorPolicyState();
         }
 
-        private static void RefreshTitleBarThemeColor(IntPtr window) {
-            // bool isDarkMode = isDarkModeAllowedForWindow(window) && shouldAppsUseDarkMode() && !isHighContrast();
-            bool isDarkMode = true;
-            if (!isDarkModeAllowedForWindow(window)) {
-                // Trace.WriteLine("dark mode is not allowed for window");
-                isDarkMode = false;
-            } else if (!shouldAppsUseDarkMode()) {
-                // Trace.WriteLine("system should not use dark mode");
-                isDarkMode = false;
-            } else if (isHighContrast()) {
-                // Trace.WriteLine("high contrast enabled");
-                isDarkMode = false;
+        internal void RefreshTitleBarThemeColor(IntPtr window) {
+            if (!PreferredWindowModes.TryGetValue(window, out Mode windowMode)) {
+                windowMode = Mode.Auto;
             }
+
+            if (windowMode == Mode.Auto) {
+                windowMode = _preferredAppMode ?? Mode.Auto;
+            }
+
+            if (windowMode == Mode.Auto) {
+                windowMode = IsSystemModeDark() ? Mode.Dark : Mode.Light;
+            }
+
+            if (!IsDarkModeAllowedForWindow(window)) {
+                windowMode = Mode.Light;
+            } else if (IsHighContrast()) {
+                windowMode = Mode.Light;
+            }
+
+            bool isDarkMode = windowMode == Mode.Dark;
 
             try {
                 // Windows 10 1903 and later
-                int    attributeValueBufferSize = Marshal.SizeOf<bool>();
+                int    attributeValueBufferSize = Marshal.SizeOf(typeof(bool));
                 IntPtr attributeValueBuffer     = Marshal.AllocCoTaskMem(attributeValueBufferSize);
                 Marshal.WriteInt32(attributeValueBuffer, Convert.ToInt32(isDarkMode));
 
                 var windowCompositionAttributeData = new WindowCompositionAttributeData(WindowCompositionAttribute.WcaUsedarkmodecolors, attributeValueBuffer, attributeValueBufferSize);
 
-                bool success = setWindowCompositionAttribute(window, ref windowCompositionAttributeData);
-                // Trace.WriteLine($"setWindowCompositionAttribute [success={success}, lastError={Marshal.GetLastWin32Error()}]");
+                bool success = SetWindowCompositionAttribute(window, ref windowCompositionAttributeData);
+                Console.WriteLine($"setWindowCompositionAttribute [success={success}, lastError={Marshal.GetLastWin32Error()}]");
 
                 // const int WIN10_20H1_BUILD = 19041;
                 // DwmWindowAttribute useImmersiveDarkMode = Environment.OSVersion.Version.Build < WIN10_20H1_BUILD
@@ -63,17 +78,22 @@ namespace darknet {
                 // Windows 10 1809 only
                 // Console.WriteLine(e);
                 /*bool success = */
-                setProp(window, "UseImmersiveDarkModeColors", new IntPtr(Convert.ToInt64(isDarkMode)));
+                try {
+                    SetProp(window, "UseImmersiveDarkModeColors", new IntPtr(Convert.ToInt64(isDarkMode)));
+                } catch (Exception exception) when (!(exception is OutOfMemoryException)) {
+                    throw new Exception("Failed to set dark mode for process", exception); //TODO throw a different class
+                }
+
                 // Console.WriteLine($"setProp [success={success}]");
             }
         }
 
-        private static bool isHighContrast() {
+        internal static bool IsHighContrast() {
             const int getHighContrast = 0x42;
             const int highContrastOn  = 0x1;
 
             var highContrastData = new HighContrastData(null);
-            if (systemParametersInfo(getHighContrast, highContrastData.size, ref highContrastData, 0)) {
+            if (SystemParametersInfo(getHighContrast, highContrastData.size, ref highContrastData, 0)) {
                 return (highContrastData.flags & highContrastOn) != 0;
             }
 
@@ -87,58 +107,93 @@ namespace darknet {
         /// </summary>
         /// <param name="windowHandle"></param>
         /// <param name="isDarkModeAllowed"></param>
-        public static void SetDarkModeAllowedForWindow(IntPtr windowHandle, bool isDarkModeAllowed) {
-            allowDarkModeForWindow(windowHandle, isDarkModeAllowed);
+        public void SetModeForWindow(IntPtr windowHandle, Mode windowMode) {
+            bool isNewWindow = false;
+
+            PreferredWindowModes.AddOrUpdate(windowHandle, _ => {
+                isNewWindow = true;
+                return windowMode;
+            }, (_, _) => {
+                isNewWindow = false;
+                return windowMode;
+            });
+
+            if (isNewWindow) {
+                ListenForSystemModeChanges(windowHandle);
+            }
+
+            AllowDarkModeForWindow(windowHandle, windowMode != Mode.Light);
             RefreshTitleBarThemeColor(windowHandle);
         }
 
+        internal void OnWindowClosed(IntPtr windowHandle) {
+            PreferredWindowModes.TryRemove(windowHandle, out _);
+        }
+
+        private void ListenForSystemModeChanges(IntPtr windowHandle) {
+            SystemEvents.UserPreferenceChanged += OnSettingsChanged;
+
+            void OnSettingsChanged(object _, UserPreferenceChangedEventArgs args) {
+                if (!PreferredWindowModes.ContainsKey(windowHandle)) {
+                    SystemEvents.UserPreferenceChanged -= OnSettingsChanged;
+                } else if (args.Category == UserPreferenceCategory.General && _preferredSystemDarkModeCached != IsSystemModeDark()) {
+                    RefreshTitleBarThemeColor(windowHandle);
+                }
+            }
+        }
+
+        /// <summary>
+        ///     <para>This reflects the user's preference in Settings › Personalization › Colors › Choose Your Default App Mode.</para>
+        ///     <para>This calls <see cref="ShouldAppsUseDarkMode" /> and caches the result for future change comparisons.</para>
+        /// </summary>
+        /// <returns><c>true</c> if the system's Default App Mode is Dark, or <c>false</c> if it is Light.</returns>
+        private bool IsSystemModeDark() => _preferredSystemDarkModeCached = ShouldAppsUseDarkMode();
+
         //these ordinals are decimal
         [DllImport("uxtheme.dll", EntryPoint = "#104")]
-        private static extern void refreshImmersiveColorPolicyState();
+        private static extern void RefreshImmersiveColorPolicyState();
 
         [DllImport("uxtheme.dll", EntryPoint = "#132", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool shouldAppsUseDarkMode();
+        private static extern bool ShouldAppsUseDarkMode();
 
         [DllImport("uxtheme.dll", EntryPoint = "#133", SetLastError = true)]
         // [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool allowDarkModeForWindow(IntPtr window, bool isDarkModeAllowed);
+        private static extern bool AllowDarkModeForWindow(IntPtr window, bool isDarkModeAllowed);
 
         /// <remarks>Available in Windows 10 build 1903 (May 2019 Update) and later</remarks>
         [DllImport("uxtheme.dll", EntryPoint = "#135", SetLastError = true)]
-        // [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool setPreferredAppMode(AppMode preferredAppMode);
+        private static extern bool SetPreferredAppMode(AppMode preferredAppMode);
 
         /// <remarks>Available only in Windows 10 build 1809 (October 2018 Update)</remarks>
         [DllImport("uxtheme.dll", EntryPoint = "#135", SetLastError = true)]
-        // [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool allowDarkModeForApp(bool isDarkModeAllowed);
+        private static extern bool AllowDarkModeForApp(bool isDarkModeAllowed);
 
         [DllImport("uxtheme.dll", EntryPoint = "#137", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool isDarkModeAllowedForWindow(IntPtr window);
+        private static extern bool IsDarkModeAllowedForWindow(IntPtr window);
 
+        [Obsolete("Use shouldAppsUseDarkMode() instead")]
         [DllImport("uxtheme.dll", EntryPoint = "#138", SetLastError = true)]
-        // [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool shouldSystemUseDarkMode();
+        private static extern bool ShouldSystemUseDarkMode();
 
         [DllImport("uxtheme.dll", EntryPoint = "#139", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool isDarkModeAllowedForApp();
+        private static extern bool IsDarkModeAllowedForApp();
 
-        [DllImport("user32.dll", SetLastError = true, EntryPoint = "SetWindowCompositionAttribute")]
+        [DllImport("user32.dll", SetLastError = true)]
         // [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool setWindowCompositionAttribute(IntPtr window, ref WindowCompositionAttributeData windowCompositionAttribute);
+        private static extern bool SetWindowCompositionAttribute(IntPtr window, ref WindowCompositionAttributeData windowCompositionAttribute);
 
-        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto, EntryPoint = "SetProp")]
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
         // [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool setProp(IntPtr window, string propertyName, IntPtr propertyValue);
+        private static extern bool SetProp(IntPtr window, string propertyName, IntPtr propertyValue);
 
-        [DllImport("dwmapi.dll", EntryPoint = "DwmSetWindowAttribute", SetLastError = false)]
-        private static extern int dwmSetWindowAttribute(IntPtr window, DwmWindowAttribute attribute, IntPtr valuePointer, int valuePointerSize);
+        [DllImport("dwmapi.dll", SetLastError = false)]
+        private static extern int DwmSetWindowAttribute(IntPtr window, DwmWindowAttribute attribute, IntPtr valuePointer, int valuePointerSize);
 
-        [DllImport("user32.dll", EntryPoint = "SystemParametersInfo", CharSet = CharSet.Unicode, SetLastError = true)]
-        private static extern bool systemParametersInfo(uint uiAction, uint uiParam, ref HighContrastData callback, uint fwinini);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern bool SystemParametersInfo(uint uiAction, uint uiParam, ref HighContrastData callback, uint fwinini);
 
     }
 
@@ -230,7 +285,7 @@ namespace darknet {
         internal readonly IntPtr schemeNamePointer;
 
         public HighContrastData(object? _ = null) {
-            size              = (uint) Marshal.SizeOf<HighContrastData>();
+            size              = (uint) Marshal.SizeOf(typeof(HighContrastData));
             flags             = 0;
             schemeNamePointer = IntPtr.Zero;
         }

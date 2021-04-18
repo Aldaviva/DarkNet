@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Windows.Forms;
+using darknet;
 using darknet.forms;
 
 #nullable enable
@@ -12,10 +13,11 @@ namespace darknet_demo_winforms {
         private static void Main() {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            DarkNet.SetDarkModeAllowedForProcess(true);
+            DarkNetForms darkNet = new DarkNetFormsImpl();
+            darkNet.SetModeForCurrentProcess(Mode.Auto);
 
             Form mainForm = new Form1();
-            DarkNet.SetDarkModeAllowedForWindow(mainForm, true);
+            darkNet.SetModeForWindow(Mode.Auto, mainForm);
             mainForm.Show();
 
             Application.Run(mainForm);

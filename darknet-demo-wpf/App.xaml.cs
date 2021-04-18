@@ -1,4 +1,5 @@
 ﻿using System.Windows;
+using darknet;
 using darknet.wpf;
 
 #nullable enable
@@ -8,10 +9,13 @@ namespace darknet_demo_wpf {
     public partial class App {
 
         private void App_OnStartup(object sender, StartupEventArgs e) {
-            DarkNet.SetDarkModeAllowedForProcess(true);
+            DarkNetWpf darkNet = new DarkNetWpfImpl();
+            darkNet.SetModeForCurrentProcess(Mode.Auto);
 
             var window = new MainWindow();
-            window.SourceInitialized += (_, _) => { DarkNet.SetDarkModeAllowedForWindow(window, true); };
+            darkNet.SetModeForWindow(Mode.Auto, window);
+            // window.SourceInitialized += (_, _) => {
+            // };
 
             window.Show();
         }
