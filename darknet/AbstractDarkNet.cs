@@ -1,30 +1,33 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
+using DarkNet;
 using Microsoft.Win32;
 
 namespace darknet {
 
-    internal class DarkMode {
+    public abstract class AbstractDarkNet<TWindow>: DarkNet<TWindow> {
 
         private bool  _preferredSystemDarkModeCached;
         private Mode? _preferredAppMode;
 
-        private readonly ConcurrentDictionary<IntPtr, Mode> PreferredWindowModes = new();
+        private readonly ConcurrentDictionary<IntPtr, Mode> _preferredWindowModes = new();
 
         public bool IsSystemDarkMode => IsSystemModeDark();
+        public event IsSystemDarkModeChangedEventHandler? IsSystemDarkModeChanged;
+
+        public abstract void SetModeForCurrentProcess(Mode mode);
+        public abstract void SetModeForWindow(Mode         mode, TWindow window);
 
         /// <summary>call this before showing any windows in your app</summary>
         /// <param name="isDarkModeAllowed"></param>
-        public void SetModeForProcess(Mode mode) {
+        internal void SetModeForProcess(Mode mode) {
             _preferredAppMode = mode;
             try {
-                bool wasDarkMode = SetPreferredAppMode(AppMode.AllowDark);
-                // Console.WriteLine($"setPreferredAppMode [wasDarkMode={wasDarkMode}, last error={Marshal.GetLastWin32Error()}]");
+                Win32.SetPreferredAppMode(AppMode.AllowDark);
             } catch (Exception e1) when (!(e1 is OutOfMemoryException)) {
                 try {
-                    bool success = AllowDarkModeForApp(true);
-                    // Console.WriteLine($"allowDarkModeForApp [success={success}]");
+                    Win32.AllowDarkModeForApp(true);
                 } catch (Exception e2) when (!(e2 is OutOfMemoryException)) {
                     throw new Exception("Failed to set dark mode for process", e1); //TODO throw a different class
                 }
@@ -34,7 +37,7 @@ namespace darknet {
         }
 
         internal void RefreshTitleBarThemeColor(IntPtr window) {
-            if (!PreferredWindowModes.TryGetValue(window, out Mode windowMode)) {
+            if (!_preferredWindowModes.TryGetValue(window, out Mode windowMode)) {
                 windowMode = Mode.Auto;
             }
 
@@ -46,7 +49,7 @@ namespace darknet {
                 windowMode = IsSystemModeDark() ? Mode.Dark : Mode.Light;
             }
 
-            if (!IsDarkModeAllowedForWindow(window)) {
+            if (!Win32.IsDarkModeAllowedForWindow(window)) {
                 windowMode = Mode.Light;
             } else if (IsHighContrast()) {
                 windowMode = Mode.Light;
@@ -62,8 +65,7 @@ namespace darknet {
 
                 var windowCompositionAttributeData = new WindowCompositionAttributeData(WindowCompositionAttribute.WcaUsedarkmodecolors, attributeValueBuffer, attributeValueBufferSize);
 
-                bool success = SetWindowCompositionAttribute(window, ref windowCompositionAttributeData);
-                Console.WriteLine($"setWindowCompositionAttribute [success={success}, lastError={Marshal.GetLastWin32Error()}]");
+                Win32.SetWindowCompositionAttribute(window, ref windowCompositionAttributeData);
 
                 // const int WIN10_20H1_BUILD = 19041;
                 // DwmWindowAttribute useImmersiveDarkMode = Environment.OSVersion.Version.Build < WIN10_20H1_BUILD
@@ -76,15 +78,11 @@ namespace darknet {
 
             } catch (Exception e) when (!(e is OutOfMemoryException)) {
                 // Windows 10 1809 only
-                // Console.WriteLine(e);
-                /*bool success = */
                 try {
-                    SetProp(window, "UseImmersiveDarkModeColors", new IntPtr(Convert.ToInt64(isDarkMode)));
+                    Win32.SetProp(window, "UseImmersiveDarkModeColors", new IntPtr(Convert.ToInt64(isDarkMode)));
                 } catch (Exception exception) when (!(exception is OutOfMemoryException)) {
                     throw new Exception("Failed to set dark mode for process", exception); //TODO throw a different class
                 }
-
-                // Console.WriteLine($"setProp [success={success}]");
             }
         }
 
@@ -93,7 +91,7 @@ namespace darknet {
             const int highContrastOn  = 0x1;
 
             var highContrastData = new HighContrastData(null);
-            if (SystemParametersInfo(getHighContrast, highContrastData.size, ref highContrastData, 0)) {
+            if (Win32.SystemParametersInfo(getHighContrast, highContrastData.size, ref highContrastData, 0)) {
                 return (highContrastData.flags & highContrastOn) != 0;
             }
 
@@ -107,10 +105,10 @@ namespace darknet {
         /// </summary>
         /// <param name="windowHandle"></param>
         /// <param name="isDarkModeAllowed"></param>
-        public void SetModeForWindow(IntPtr windowHandle, Mode windowMode) {
+        internal void SetModeForWindow(IntPtr windowHandle, Mode windowMode) {
             bool isNewWindow = false;
 
-            PreferredWindowModes.AddOrUpdate(windowHandle, _ => {
+            _preferredWindowModes.AddOrUpdate(windowHandle, _ => {
                 isNewWindow = true;
                 return windowMode;
             }, (_, _) => {
@@ -122,19 +120,19 @@ namespace darknet {
                 ListenForSystemModeChanges(windowHandle);
             }
 
-            AllowDarkModeForWindow(windowHandle, windowMode != Mode.Light);
+            Win32.AllowDarkModeForWindow(windowHandle, windowMode != Mode.Light);
             RefreshTitleBarThemeColor(windowHandle);
         }
 
-        internal void OnWindowClosed(IntPtr windowHandle) {
-            PreferredWindowModes.TryRemove(windowHandle, out _);
+        internal void OnWindowClosing(IntPtr windowHandle) {
+            _preferredWindowModes.TryRemove(windowHandle, out _);
         }
 
         private void ListenForSystemModeChanges(IntPtr windowHandle) {
             SystemEvents.UserPreferenceChanged += OnSettingsChanged;
 
             void OnSettingsChanged(object _, UserPreferenceChangedEventArgs args) {
-                if (!PreferredWindowModes.ContainsKey(windowHandle)) {
+                if (!_preferredWindowModes.ContainsKey(windowHandle)) {
                     SystemEvents.UserPreferenceChanged -= OnSettingsChanged;
                 } else if (args.Category == UserPreferenceCategory.General && _preferredSystemDarkModeCached != IsSystemModeDark()) {
                     RefreshTitleBarThemeColor(windowHandle);
@@ -147,53 +145,15 @@ namespace darknet {
         ///     <para>This calls <see cref="ShouldAppsUseDarkMode" /> and caches the result for future change comparisons.</para>
         /// </summary>
         /// <returns><c>true</c> if the system's Default App Mode is Dark, or <c>false</c> if it is Light.</returns>
-        private bool IsSystemModeDark() => _preferredSystemDarkModeCached = ShouldAppsUseDarkMode();
+        private bool IsSystemModeDark() {
+            bool oldValue = _preferredSystemDarkModeCached;
+            _preferredSystemDarkModeCached = Win32.ShouldAppsUseDarkMode();
+            if (_preferredSystemDarkModeCached != oldValue) {
+                IsSystemDarkModeChanged?.Invoke(this, _preferredSystemDarkModeCached);
+            }
 
-        //these ordinals are decimal
-        [DllImport("uxtheme.dll", EntryPoint = "#104")]
-        private static extern void RefreshImmersiveColorPolicyState();
-
-        [DllImport("uxtheme.dll", EntryPoint = "#132", SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool ShouldAppsUseDarkMode();
-
-        [DllImport("uxtheme.dll", EntryPoint = "#133", SetLastError = true)]
-        // [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool AllowDarkModeForWindow(IntPtr window, bool isDarkModeAllowed);
-
-        /// <remarks>Available in Windows 10 build 1903 (May 2019 Update) and later</remarks>
-        [DllImport("uxtheme.dll", EntryPoint = "#135", SetLastError = true)]
-        private static extern bool SetPreferredAppMode(AppMode preferredAppMode);
-
-        /// <remarks>Available only in Windows 10 build 1809 (October 2018 Update)</remarks>
-        [DllImport("uxtheme.dll", EntryPoint = "#135", SetLastError = true)]
-        private static extern bool AllowDarkModeForApp(bool isDarkModeAllowed);
-
-        [DllImport("uxtheme.dll", EntryPoint = "#137", SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool IsDarkModeAllowedForWindow(IntPtr window);
-
-        [Obsolete("Use shouldAppsUseDarkMode() instead")]
-        [DllImport("uxtheme.dll", EntryPoint = "#138", SetLastError = true)]
-        private static extern bool ShouldSystemUseDarkMode();
-
-        [DllImport("uxtheme.dll", EntryPoint = "#139", SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool IsDarkModeAllowedForApp();
-
-        [DllImport("user32.dll", SetLastError = true)]
-        // [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool SetWindowCompositionAttribute(IntPtr window, ref WindowCompositionAttributeData windowCompositionAttribute);
-
-        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-        // [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool SetProp(IntPtr window, string propertyName, IntPtr propertyValue);
-
-        [DllImport("dwmapi.dll", SetLastError = false)]
-        private static extern int DwmSetWindowAttribute(IntPtr window, DwmWindowAttribute attribute, IntPtr valuePointer, int valuePointerSize);
-
-        [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        private static extern bool SystemParametersInfo(uint uiAction, uint uiParam, ref HighContrastData callback, uint fwinini);
+            return _preferredSystemDarkModeCached;
+        }
 
     }
 
@@ -291,5 +251,21 @@ namespace darknet {
         }
 
     }
+
+    public delegate void IsSystemDarkModeChangedEventHandler(object sender, bool isSystemDarkMode);
+
+    // public delegate IsSystemDarkModeChangedEventArgs: EventArgs {
+    //
+    // }
+
+    // public class IsSystemDarkModeChangedEventArgs: EventArgs {
+    //
+    //     public bool IsSystemDarkMode { get; }
+    //
+    //     public IsSystemDarkModeChangedEventArgs(bool isSystemDarkMode) {
+    //         IsSystemDarkMode = isSystemDarkMode;
+    //     }
+    //
+    // }
 
 }

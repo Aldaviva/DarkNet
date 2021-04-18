@@ -9,6 +9,52 @@ namespace darknet {
         [DllImport("user32.dll", SetLastError = true)]
         public static extern bool GetWindowInfo(IntPtr hwnd, ref WindowInfo pwi);
 
+        //these ordinals are decimal
+        [DllImport("uxtheme.dll", EntryPoint = "#104")]
+        internal static extern void RefreshImmersiveColorPolicyState();
+
+        [DllImport("uxtheme.dll", EntryPoint = "#132", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool ShouldAppsUseDarkMode();
+
+        [DllImport("uxtheme.dll", EntryPoint = "#133", SetLastError = true)]
+        // [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool AllowDarkModeForWindow(IntPtr window, bool isDarkModeAllowed);
+
+        /// <remarks>Available in Windows 10 build 1903 (May 2019 Update) and later</remarks>
+        [DllImport("uxtheme.dll", EntryPoint = "#135", SetLastError = true)]
+        internal static extern bool SetPreferredAppMode(AppMode preferredAppMode);
+
+        /// <remarks>Available only in Windows 10 build 1809 (October 2018 Update)</remarks>
+        [DllImport("uxtheme.dll", EntryPoint = "#135", SetLastError = true)]
+        internal static extern bool AllowDarkModeForApp(bool isDarkModeAllowed);
+
+        [DllImport("uxtheme.dll", EntryPoint = "#137", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool IsDarkModeAllowedForWindow(IntPtr window);
+
+        [Obsolete("Use shouldAppsUseDarkMode() instead")]
+        [DllImport("uxtheme.dll", EntryPoint = "#138", SetLastError = true)]
+        internal static extern bool ShouldSystemUseDarkMode();
+
+        [DllImport("uxtheme.dll", EntryPoint = "#139", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool IsDarkModeAllowedForApp();
+
+        [DllImport("user32.dll", SetLastError = true)]
+        // [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool SetWindowCompositionAttribute(IntPtr window, ref WindowCompositionAttributeData windowCompositionAttribute);
+
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        // [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool SetProp(IntPtr window, string propertyName, IntPtr propertyValue);
+
+        [DllImport("dwmapi.dll", SetLastError = false)]
+        internal static extern int DwmSetWindowAttribute(IntPtr window, DwmWindowAttribute attribute, IntPtr valuePointer, int valuePointerSize);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        internal static extern bool SystemParametersInfo(uint uiAction, uint uiParam, ref HighContrastData callback, uint fwinini);
+
     }
 
     [StructLayout(LayoutKind.Sequential)]

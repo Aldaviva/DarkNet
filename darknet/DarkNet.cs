@@ -16,6 +16,9 @@ namespace DarkNet {
 
         void SetModeForWindow(Mode mode, TWindow window);
 
+        bool IsSystemDarkMode { get; }
+        event IsSystemDarkModeChangedEventHandler? IsSystemDarkModeChanged;
+
     }
 
 }

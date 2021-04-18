@@ -20,6 +20,9 @@ namespace darknet_demo_winforms {
             darkNet.SetModeForWindow(Mode.Auto, mainForm);
             mainForm.Show();
 
+            Console.WriteLine($"System is in {(darkNet.IsSystemDarkMode ? "Dark" : "Light")} mode");
+            darkNet.IsSystemDarkModeChanged += (_, isSystemDarkMode) => Console.WriteLine($"System changed to {(isSystemDarkMode ? "Dark" : "Light")} mode");
+
             Application.Run(mainForm);
         }
 

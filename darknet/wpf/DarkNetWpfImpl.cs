@@ -10,9 +10,7 @@ namespace darknet.wpf {
     ///     <para>Be sure to call both <see cref="SetModeForCurrentProcess" /> before showing any windows in your app, and then call <see cref="SetModeForWindow" /> in each of your windows' <see cref="Window.SourceInitialized" /> events.</para>
     /// </summary>
     /// <remarks>Requires Windows 10 version 1809 or later.</remarks>
-    public class DarkNetWpfImpl: DarkNetWpf {
-
-        private readonly DarkMode _darkMode = new();
+    public class DarkNetWpfImpl: AbstractDarkNet<Window>, DarkNetWpf {
 
         /// <summary>
         ///     <para>Allow windows in your app to use dark mode.</para>
@@ -22,12 +20,12 @@ namespace darknet.wpf {
         /// <param name="mode"></param>
         /// <param name="isDarkModeAllowed"><c>true</c> to allow dark mode, <c>false</c> to not allow dark mode (the default).</param>
         /// <exception cref="InvalidOperationException">If this method was called after creating or showing any windows in your app. It has to be called before that, e.g. as the first statement in <c>App_OnStartup</c>.</exception>
-        public void SetModeForCurrentProcess(Mode mode) {
+        public override void SetModeForCurrentProcess(Mode mode) {
             if (Application.Current.MainWindow != null || Application.Current.Windows.Count > 0) { //doesn't help if other windows were already opened and closed before calling this
                 throw new InvalidOperationException("Called too late, call this before showing any windows");
             }
 
-            _darkMode.SetModeForProcess(mode);
+            SetModeForProcess(mode);
         }
 
         /// <summary>
@@ -40,7 +38,7 @@ namespace darknet.wpf {
         /// <param name="window">A WPF window which has been constructed and is being SourceInitialized, but has not yet been shown.</param>
         /// <param name="isDarkModeAllowed"><c>true</c> to make the title bar dark, or <c>false</c> to leave the title bar light (the default).</param>
         /// <exception cref="InvalidOperationException">If this method was called too early (such as right after the Window constructor), or too late (such as after <see cref="Window.Show" /> returns).</exception>
-        public void SetModeForWindow(Mode mode, Window window) {
+        public override void SetModeForWindow(Mode mode, Window window) {
             bool isWindowInitialized = PresentationSource.FromVisual(window) != null;
             if (!isWindowInitialized) {
                 window.SourceInitialized += OnSourceInitialized;
@@ -62,18 +60,14 @@ namespace darknet.wpf {
                 throw new InvalidOperationException("Called too late, call this during OnSourceInitialized");
             }
 
-            _darkMode.SetModeForWindow(windowHandle, mode);
+            SetModeForWindow(windowHandle, mode);
 
-            // CancellationTokenSource debounce = new();
-
-            // DarkMode.ListenForSystemModeChanges(windowHandle);
-
-            void OnWindowOnClosing(object sender, CancelEventArgs args) {
-                window.Closing -= OnWindowOnClosing;
-                _darkMode.OnWindowClosed(windowHandle);
+            void OnClosing(object sender, CancelEventArgs args) {
+                window.Closing -= OnClosing;
+                OnWindowClosing(windowHandle);
             }
 
-            window.Closing += OnWindowOnClosing;
+            window.Closing += OnClosing;
         }
 
     }

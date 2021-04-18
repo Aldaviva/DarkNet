@@ -1,4 +1,5 @@
-﻿using System.Windows;
+﻿using System;
+using System.Windows;
 using darknet;
 using darknet.wpf;
 
@@ -18,6 +19,9 @@ namespace darknet_demo_wpf {
             // };
 
             window.Show();
+
+            Console.WriteLine($"System is in {(darkNet.IsSystemDarkMode ? "Dark" : "Light")} mode");
+            darkNet.IsSystemDarkModeChanged += (_, isSystemDarkMode) => Console.WriteLine($"System changed to {(isSystemDarkMode ? "Dark" : "Light")} mode");
         }
 
     }
