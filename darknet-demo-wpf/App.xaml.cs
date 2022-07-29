@@ -1,24 +1,18 @@
 ﻿using System;
 using System.Windows;
-using DarkNet;
-using DarkNet.WPF;
+using Dark.Net;
 
-#nullable enable
+namespace darknet_demo_wpf;
 
-namespace darknet_demo_wpf {
+public partial class App {
 
-    public partial class App {
+    protected override void OnStartup(StartupEventArgs e) {
+        base.OnStartup(e);
 
-        protected override void OnStartup(StartupEventArgs e) {
-            base.OnStartup(e);
+        DarkNet.Instance.SetCurrentProcessTheme(Theme.Auto);
 
-            DarkNetWpf darkNet = DarkNetWpfImpl.Instance;
-            darkNet.SetCurrentProcessTheme(Theme.Auto);
-
-            Console.WriteLine($"System is in {(darkNet.IsSystemDarkTheme ? "Dark" : "Light")} mode");
-            darkNet.IsSystemDarkThemeChanged += (_, isSystemDarkMode) => Console.WriteLine($"System changed to {(isSystemDarkMode ? "Dark" : "Light")} mode");
-        }
-
+        Console.WriteLine($"System is in {(DarkNet.Instance.IsSystemDarkTheme ? "Dark" : "Light")} mode");
+        DarkNet.Instance.SystemDarkThemeChanged += (_, isSystemDarkMode) => Console.WriteLine($"System changed to {(isSystemDarkMode ? "Dark" : "Light")} mode");
     }
 
 }

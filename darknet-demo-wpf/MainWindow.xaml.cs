@@ -1,17 +1,12 @@
-﻿using DarkNet;
-using DarkNet.WPF;
+﻿using Dark.Net;
 
-#nullable enable
+namespace darknet_demo_wpf;
 
-namespace darknet_demo_wpf {
+public partial class MainWindow {
 
-    public partial class MainWindow {
-
-        public MainWindow() {
-            InitializeComponent();
-            DarkNetWpfImpl.Instance.SetWindowTheme(this, Theme.Auto);
-        }
-
+    public MainWindow() {
+        InitializeComponent();
+        DarkNet.Instance.SetWpfWindowTheme(this, Theme.Auto);
     }
 
 }

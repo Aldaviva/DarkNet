@@ -34,12 +34,15 @@ namespace darknet_demo_winforms
             // 
             // label1
             // 
-            this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(389, 202);
+            this.label1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.label1.Location = new System.Drawing.Point(12, 201);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(17, 13);
+            this.label1.Size = new System.Drawing.Size(768, 13);
             this.label1.TabIndex = 0;
-            this.label1.Text = "Hi";
+            this.label1.Text = "Try changing your color mode in Windows Settings to see this app\'s title bar reac" +
+    "t.";
             this.label1.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // Form1
@@ -51,9 +54,8 @@ namespace darknet_demo_winforms
             this.Controls.Add(this.label1);
             this.ForeColor = System.Drawing.Color.White;
             this.Name = "Form1";
-            this.Text = "Windows Forms demonstration";
+            this.Text = "Windows Forms demonstration on .NET Framework 4.8";
             this.ResumeLayout(false);
-            this.PerformLayout();
 
         }
 

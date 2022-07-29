@@ -4,8 +4,8 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="Windows Presentation Foundation demonstration" Height="450" Width="800" Background="#FF131313">
+        Title="Windows Presentation Foundation demonstration on .NET 6" Height="450" Width="800" Background="#FF131313">
     <Grid>
-        <Label Content="Hi" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
+        <Label Content="Try changing your color mode in Windows Settings to see this app's title bar react." HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
     </Grid>
 </Window>
