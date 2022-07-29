@@ -1,7 +1,8 @@
 ﻿using System.Windows;
-using DarkNet;
 
-namespace darknet.wpf {
+#nullable enable
+
+namespace DarkNet.WPF {
 
     public interface DarkNetWpf: DarkNet<Window> {
 

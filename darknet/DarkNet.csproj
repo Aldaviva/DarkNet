@@ -22,11 +22,11 @@
   </PropertyGroup>
 
   <ItemGroup Condition="$(Configuration.EndsWith('-Forms'))">
-    <Compile Remove="wpf\**" />
+    <Compile Remove="WPF\**" />
   </ItemGroup>
 
   <ItemGroup Condition="$(Configuration.EndsWith('-WPF'))">
-    <Compile Remove="forms\**" />
+    <Compile Remove="Forms\**" />
   </ItemGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">

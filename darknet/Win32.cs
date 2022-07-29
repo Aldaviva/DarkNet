@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
-namespace darknet {
+#nullable enable
+
+namespace DarkNet {
 
     internal static class Win32 {
 
@@ -175,6 +177,101 @@ namespace darknet {
         WsTabstop      = 0x00010000,
         WsMinimizebox  = 0x00020000,
         WsMaximizebox  = 0x00010000
+
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal readonly struct HighContrastData {
+
+        internal readonly uint   size;
+        internal readonly uint   flags;
+        internal readonly IntPtr schemeNamePointer;
+
+        public HighContrastData(object? _ = null) {
+            size              = (uint) Marshal.SizeOf(typeof(HighContrastData));
+            flags             = 0;
+            schemeNamePointer = IntPtr.Zero;
+        }
+
+    }
+
+    internal enum AppMode {
+
+        Default,
+        AllowDark,
+        ForceDark,
+        ForceLight,
+        Max
+
+    }
+
+    internal enum DwmWindowAttribute {
+
+        DwmwaNcrenderingEnabled,
+        DwmwaNcrenderingPolicy,
+        DwmwaTransitionsForcedisabled,
+        DwmwaAllowNcpaint,
+        DwmwaCaptionButtonBounds,
+        DwmwaNonclientRtlLayout,
+        DwmwaForceIconicRepresentation,
+        DwmwaFlip3DPolicy,
+        DwmwaExtendedFrameBounds,
+        DwmwaHasIconicBitmap,
+        DwmwaDisallowPeek,
+        DwmwaExcludedFromPeek,
+        DwmwaCloak,
+        DwmwaCloaked,
+        DwmwaFreezeRepresentation,
+        DwmwaUseImmersiveDarkModeBefore20H1 = 19,
+        DwmwaUseImmersiveDarkMode           = 20
+
+    }
+
+    internal enum WindowCompositionAttribute: uint {
+
+        WcaUndefined                   = 0,
+        WcaNcrenderingEnabled          = 1,
+        WcaNcrenderingPolicy           = 2,
+        WcaTransitionsForcedisabled    = 3,
+        WcaAllowNcpaint                = 4,
+        WcaCaptionButtonBounds         = 5,
+        WcaNonclientRtlLayout          = 6,
+        WcaForceIconicRepresentation   = 7,
+        WcaExtendedFrameBounds         = 8,
+        WcaHasIconicBitmap             = 9,
+        WcaThemeAttributes             = 10,
+        WcaNcrenderingExiled           = 11,
+        WcaNcadornmentinfo             = 12,
+        WcaExcludedFromLivepreview     = 13,
+        WcaVideoOverlayActive          = 14,
+        WcaForceActivewindowAppearance = 15,
+        WcaDisallowPeek                = 16,
+        WcaCloak                       = 17,
+        WcaCloaked                     = 18,
+        WcaAccentPolicy                = 19,
+        WcaFreezeRepresentation        = 20,
+        WcaEverUncloaked               = 21,
+        WcaVisualOwner                 = 22,
+        WcaHolographic                 = 23,
+        WcaExcludedFromDda             = 24,
+        WcaPassiveupdatemode           = 25,
+        WcaUsedarkmodecolors           = 26,
+        WcaLast                        = 27
+
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal readonly struct WindowCompositionAttributeData {
+
+        internal readonly WindowCompositionAttribute attribute;
+        internal readonly IntPtr                     data;
+        internal readonly int                        size;
+
+        public WindowCompositionAttributeData(WindowCompositionAttribute attribute, IntPtr data, int size) {
+            this.attribute = attribute;
+            this.data      = data;
+            this.size      = size;
+        }
 
     }
 

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Windows.Forms;
-using darknet;
-using darknet.forms;
+using DarkNet;
+using DarkNet.Forms;
 
 #nullable enable
 
@@ -13,15 +13,15 @@ namespace darknet_demo_winforms {
         private static void Main() {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            DarkNetForms darkNet = new DarkNetFormsImpl();
-            darkNet.SetModeForCurrentProcess(Mode.Auto);
+
+            DarkNetForms darkNet = DarkNetFormsImpl.Instance;
+            darkNet.SetCurrentProcessTheme(Theme.Auto);
 
             Form mainForm = new Form1();
-            darkNet.SetModeForWindow(Mode.Auto, mainForm);
-            mainForm.Show();
+            darkNet.SetWindowTheme(mainForm, Theme.Auto);
 
-            Console.WriteLine($"System is in {(darkNet.IsSystemDarkMode ? "Dark" : "Light")} mode");
-            darkNet.IsSystemDarkModeChanged += (_, isSystemDarkMode) => Console.WriteLine($"System changed to {(isSystemDarkMode ? "Dark" : "Light")} mode");
+            Console.WriteLine($"System is in {(darkNet.IsSystemDarkTheme ? "Dark" : "Light")} mode");
+            darkNet.IsSystemDarkThemeChanged += (_, isSystemDarkTheme) => Console.WriteLine($"System changed to {(isSystemDarkTheme ? "Dark" : "Light")} mode");
 
             Application.Run(mainForm);
         }

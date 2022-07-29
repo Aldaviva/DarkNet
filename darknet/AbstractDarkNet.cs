@@ -1,28 +1,29 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
-using DarkNet;
 using Microsoft.Win32;
 
-namespace darknet {
+#nullable enable
+
+namespace DarkNet {
 
     public abstract class AbstractDarkNet<TWindow>: DarkNet<TWindow> {
 
-        private bool  _preferredSystemDarkModeCached;
-        private Mode? _preferredAppMode;
+        private bool   _preferredSystemDarkModeCached;
+        private Theme? _preferredAppMode;
 
-        private readonly ConcurrentDictionary<IntPtr, Mode> _preferredWindowModes = new();
+        private readonly ConcurrentDictionary<IntPtr, Theme> _preferredWindowModes = new();
 
-        public bool IsSystemDarkMode => IsSystemModeDark();
-        public event IsSystemDarkModeChangedEventHandler? IsSystemDarkModeChanged;
+        public bool IsSystemDarkTheme => IsSystemModeDark();
+        public event IsSystemDarkThemeChangedEventHandler? IsSystemDarkThemeChanged;
 
-        public abstract void SetModeForCurrentProcess(Mode mode);
-        public abstract void SetModeForWindow(Mode         mode, TWindow window);
+        public abstract void SetCurrentProcessTheme(Theme theme);
+        public abstract void SetWindowTheme(TWindow       window, Theme theme);
 
         /// <summary>call this before showing any windows in your app</summary>
         /// <param name="isDarkModeAllowed"></param>
-        internal void SetModeForProcess(Mode mode) {
-            _preferredAppMode = mode;
+        internal void SetModeForProcess(Theme theme) {
+            _preferredAppMode = theme;
             try {
                 Win32.SetPreferredAppMode(AppMode.AllowDark);
             } catch (Exception e1) when (!(e1 is OutOfMemoryException)) {
@@ -37,25 +38,25 @@ namespace darknet {
         }
 
         internal void RefreshTitleBarThemeColor(IntPtr window) {
-            if (!_preferredWindowModes.TryGetValue(window, out Mode windowMode)) {
-                windowMode = Mode.Auto;
+            if (!_preferredWindowModes.TryGetValue(window, out Theme windowMode)) {
+                windowMode = Theme.Auto;
             }
 
-            if (windowMode == Mode.Auto) {
-                windowMode = _preferredAppMode ?? Mode.Auto;
+            if (windowMode == Theme.Auto) {
+                windowMode = _preferredAppMode ?? Theme.Auto;
             }
 
-            if (windowMode == Mode.Auto) {
-                windowMode = IsSystemModeDark() ? Mode.Dark : Mode.Light;
+            if (windowMode == Theme.Auto) {
+                windowMode = IsSystemModeDark() ? Theme.Dark : Theme.Light;
             }
 
             if (!Win32.IsDarkModeAllowedForWindow(window)) {
-                windowMode = Mode.Light;
+                windowMode = Theme.Light;
             } else if (IsHighContrast()) {
-                windowMode = Mode.Light;
+                windowMode = Theme.Light;
             }
 
-            bool isDarkMode = windowMode == Mode.Dark;
+            bool isDarkMode = windowMode == Theme.Dark;
 
             try {
                 // Windows 10 1903 and later
@@ -105,22 +106,22 @@ namespace darknet {
         /// </summary>
         /// <param name="windowHandle"></param>
         /// <param name="isDarkModeAllowed"></param>
-        internal void SetModeForWindow(IntPtr windowHandle, Mode windowMode) {
+        internal void SetModeForWindow(IntPtr windowHandle, Theme windowTheme) {
             bool isNewWindow = false;
 
             _preferredWindowModes.AddOrUpdate(windowHandle, _ => {
                 isNewWindow = true;
-                return windowMode;
+                return windowTheme;
             }, (_, _) => {
                 isNewWindow = false;
-                return windowMode;
+                return windowTheme;
             });
 
             if (isNewWindow) {
                 ListenForSystemModeChanges(windowHandle);
             }
 
-            Win32.AllowDarkModeForWindow(windowHandle, windowMode != Mode.Light);
+            Win32.AllowDarkModeForWindow(windowHandle, windowTheme != Theme.Light);
             RefreshTitleBarThemeColor(windowHandle);
         }
 
@@ -149,123 +150,12 @@ namespace darknet {
             bool oldValue = _preferredSystemDarkModeCached;
             _preferredSystemDarkModeCached = Win32.ShouldAppsUseDarkMode();
             if (_preferredSystemDarkModeCached != oldValue) {
-                IsSystemDarkModeChanged?.Invoke(this, _preferredSystemDarkModeCached);
+                IsSystemDarkThemeChanged?.Invoke(this, _preferredSystemDarkModeCached);
             }
 
             return _preferredSystemDarkModeCached;
         }
 
     }
-
-    [StructLayout(LayoutKind.Sequential)]
-    internal readonly struct WindowCompositionAttributeData {
-
-        internal readonly WindowCompositionAttribute attribute;
-        internal readonly IntPtr                     data;
-        internal readonly int                        size;
-
-        public WindowCompositionAttributeData(WindowCompositionAttribute attribute, IntPtr data, int size) {
-            this.attribute = attribute;
-            this.data      = data;
-            this.size      = size;
-        }
-
-    }
-
-    internal enum WindowCompositionAttribute: uint {
-
-        WcaUndefined                   = 0,
-        WcaNcrenderingEnabled          = 1,
-        WcaNcrenderingPolicy           = 2,
-        WcaTransitionsForcedisabled    = 3,
-        WcaAllowNcpaint                = 4,
-        WcaCaptionButtonBounds         = 5,
-        WcaNonclientRtlLayout          = 6,
-        WcaForceIconicRepresentation   = 7,
-        WcaExtendedFrameBounds         = 8,
-        WcaHasIconicBitmap             = 9,
-        WcaThemeAttributes             = 10,
-        WcaNcrenderingExiled           = 11,
-        WcaNcadornmentinfo             = 12,
-        WcaExcludedFromLivepreview     = 13,
-        WcaVideoOverlayActive          = 14,
-        WcaForceActivewindowAppearance = 15,
-        WcaDisallowPeek                = 16,
-        WcaCloak                       = 17,
-        WcaCloaked                     = 18,
-        WcaAccentPolicy                = 19,
-        WcaFreezeRepresentation        = 20,
-        WcaEverUncloaked               = 21,
-        WcaVisualOwner                 = 22,
-        WcaHolographic                 = 23,
-        WcaExcludedFromDda             = 24,
-        WcaPassiveupdatemode           = 25,
-        WcaUsedarkmodecolors           = 26,
-        WcaLast                        = 27
-
-    }
-
-    internal enum DwmWindowAttribute {
-
-        DwmwaNcrenderingEnabled,
-        DwmwaNcrenderingPolicy,
-        DwmwaTransitionsForcedisabled,
-        DwmwaAllowNcpaint,
-        DwmwaCaptionButtonBounds,
-        DwmwaNonclientRtlLayout,
-        DwmwaForceIconicRepresentation,
-        DwmwaFlip3DPolicy,
-        DwmwaExtendedFrameBounds,
-        DwmwaHasIconicBitmap,
-        DwmwaDisallowPeek,
-        DwmwaExcludedFromPeek,
-        DwmwaCloak,
-        DwmwaCloaked,
-        DwmwaFreezeRepresentation,
-        DwmwaUseImmersiveDarkModeBefore20H1 = 19,
-        DwmwaUseImmersiveDarkMode           = 20
-
-    }
-
-    internal enum AppMode {
-
-        Default,
-        AllowDark,
-        ForceDark,
-        ForceLight,
-        Max
-
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    internal readonly struct HighContrastData {
-
-        internal readonly uint   size;
-        internal readonly uint   flags;
-        internal readonly IntPtr schemeNamePointer;
-
-        public HighContrastData(object? _ = null) {
-            size              = (uint) Marshal.SizeOf(typeof(HighContrastData));
-            flags             = 0;
-            schemeNamePointer = IntPtr.Zero;
-        }
-
-    }
-
-    public delegate void IsSystemDarkModeChangedEventHandler(object sender, bool isSystemDarkMode);
-
-    // public delegate IsSystemDarkModeChangedEventArgs: EventArgs {
-    //
-    // }
-
-    // public class IsSystemDarkModeChangedEventArgs: EventArgs {
-    //
-    //     public bool IsSystemDarkMode { get; }
-    //
-    //     public IsSystemDarkModeChangedEventArgs(bool isSystemDarkMode) {
-    //         IsSystemDarkMode = isSystemDarkMode;
-    //     }
-    //
-    // }
 
 }

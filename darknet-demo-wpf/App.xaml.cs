@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Windows;
-using darknet;
-using darknet.wpf;
+using DarkNet;
+using DarkNet.WPF;
 
 #nullable enable
 
@@ -9,19 +9,14 @@ namespace darknet_demo_wpf {
 
     public partial class App {
 
-        private void App_OnStartup(object sender, StartupEventArgs e) {
-            DarkNetWpf darkNet = new DarkNetWpfImpl();
-            darkNet.SetModeForCurrentProcess(Mode.Auto);
+        protected override void OnStartup(StartupEventArgs e) {
+            base.OnStartup(e);
 
-            var window = new MainWindow();
-            darkNet.SetModeForWindow(Mode.Auto, window);
-            // window.SourceInitialized += (_, _) => {
-            // };
+            DarkNetWpf darkNet = DarkNetWpfImpl.Instance;
+            darkNet.SetCurrentProcessTheme(Theme.Auto);
 
-            window.Show();
-
-            Console.WriteLine($"System is in {(darkNet.IsSystemDarkMode ? "Dark" : "Light")} mode");
-            darkNet.IsSystemDarkModeChanged += (_, isSystemDarkMode) => Console.WriteLine($"System changed to {(isSystemDarkMode ? "Dark" : "Light")} mode");
+            Console.WriteLine($"System is in {(darkNet.IsSystemDarkTheme ? "Dark" : "Light")} mode");
+            darkNet.IsSystemDarkThemeChanged += (_, isSystemDarkMode) => Console.WriteLine($"System changed to {(isSystemDarkMode ? "Dark" : "Light")} mode");
         }
 
     }

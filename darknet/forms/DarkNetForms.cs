@@ -1,7 +1,8 @@
 ﻿using System.Windows.Forms;
-using DarkNet;
 
-namespace darknet.forms {
+#nullable enable
+
+namespace DarkNet.Forms {
 
     public interface DarkNetForms: DarkNet<Form> { }
 
