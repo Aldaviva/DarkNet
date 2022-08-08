@@ -5,7 +5,7 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{F1BBA11A-E333-43D4-936E-F4C53B9AEE19}</ProjectGuid>
-    <OutputType>WinExe</OutputType>
+    <OutputType>Exe</OutputType>
     <RootNamespace>darknet_demo_winforms</RootNamespace>
     <AssemblyName>darknet-demo-winforms</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>

@@ -19,10 +19,10 @@ internal static class Win32 {
 
     [DllImport(UxTheme, EntryPoint = "#132", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
+    [Obsolete("In .NET Core runtimes, but not .NET Framework, always returns true, regardless of what the user chooses in Settings.")]
     internal static extern bool ShouldAppsUseDarkMode();
 
     [DllImport(UxTheme, EntryPoint = "#133", SetLastError = true)]
-    // [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool AllowDarkModeForWindow(IntPtr window, bool isDarkModeAllowed);
 
     /// <remarks>Available in Windows 10 build 1903 (May 2019 Update) and later</remarks>
@@ -46,11 +46,9 @@ internal static class Win32 {
     internal static extern bool IsDarkModeAllowedForApp();
 
     [DllImport(User32, SetLastError = true)]
-    // [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool SetWindowCompositionAttribute(IntPtr window, ref WindowCompositionAttributeData windowCompositionAttribute);
 
     [DllImport(User32, SetLastError = true, CharSet = CharSet.Auto)]
-    // [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool SetProp(IntPtr window, string propertyName, IntPtr propertyValue);
 
     [DllImport(DwmApi, SetLastError = false)]

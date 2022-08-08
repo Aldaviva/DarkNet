@@ -6,7 +6,7 @@ public partial class MainWindow {
 
     public MainWindow() {
         InitializeComponent();
-        DarkNet.Instance.SetWpfWindowTheme(this, Theme.Auto);
+        DarkNet.Instance.SetWindowThemeWpf(this, Theme.Auto);
     }
 
 }

@@ -13,13 +13,17 @@ internal static class Program {
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
 
-        DarkNet.Instance.SetCurrentProcessTheme(Theme.Auto);
+        IDarkNet darkNet = DarkNet.Instance;
+        darkNet.SetCurrentProcessTheme(Theme.Auto);
 
         Form mainForm = new Form1();
-        DarkNet.Instance.SetFormsWindowTheme(mainForm, Theme.Auto);
+        darkNet.SetWindowThemeForms(mainForm, Theme.Auto);
 
-        Console.WriteLine($"System is in {(DarkNet.Instance.IsSystemDarkTheme ? "Dark" : "Light")} mode");
-        DarkNet.Instance.SystemDarkThemeChanged += (_, isSystemDarkTheme) => Console.WriteLine($"System changed to {(isSystemDarkTheme ? "Dark" : "Light")} mode");
+        Console.WriteLine($"System is in {(darkNet.UserDefaultAppThemeIsDark ? "Dark" : "Light")} mode");
+        Console.WriteLine($"Taskbar is in {(darkNet.UserTaskbarThemeIsDark ? "Dark" : "Light")} mode");
+
+        darkNet.UserDefaultAppThemeIsDarkChanged += (_, isSystemDarkTheme) => Console.WriteLine($"System changed to {(isSystemDarkTheme ? "Dark" : "Light")} mode");
+        darkNet.UserTaskbarThemeIsDarkChanged    += (_, isTaskbarDarkTheme) => Console.WriteLine($"Taskbar changed to {(isTaskbarDarkTheme ? "Dark" : "Light")} mode");
 
         Application.Run(mainForm);
     }
