@@ -26,17 +26,21 @@ jobs:
     - name: Pack library
       run: dotnet pack ${{ env.ProjectName }} --no-build --configuration Release
 
-    - name: Build demos
-      run: |
-        dotnet build darknet-demo-winforms --no-restore --configuration Release
-        dotnet publish darknet-demo-wpf --configuration Release -p:PublishSingleFile=true --runtime win-x86 --self-contained false
+    - name: Build Windows Forms demos
+      run: dotnet build darknet-demo-winforms --no-restore --configuration Release
+
+    - name: Build WPF demo
+      run: dotnet build darknet-demo-wpf --no-restore --configuration Release
+    
+    - name: Publish WPF demo
+      run: dotnet publish darknet-demo-wpf --no-build --configuration Release -p:PublishSingleFile=true --runtime win-x86 --self-contained false
 
     - name: Flatten artifacts
       run: |
         mkdir upload
         copy ${{ env.ProjectName }}/bin/Release/*.*nupkg upload
         copy darknet-demo-winforms/bin/Release/*.exe upload
-        copy darknet-demo-wpf/bin/Release/**/publish/*.exe upload
+        copy darknet-demo-wpf/bin/Release/*/*/publish/*.exe upload
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
