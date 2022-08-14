@@ -13,7 +13,7 @@
         <Authors>Ben Hutchison</Authors>
         <Company>Ben Hutchison</Company>
         <Copyright>© 2022 Ben Hutchison</Copyright>
-        <Description>Make WPF and Windows Forms title bars dark in Windows ≥ 10.</Description>
+        <Description>Enable native Windows dark mode for your WPF and Windows Forms title bars.</Description>
         <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
         <PackageProjectUrl>https://github.com/Aldaviva/DarkNet</PackageProjectUrl>
         <PackageTags>dark dark-mode darkmode forms winforms wpf</PackageTags>

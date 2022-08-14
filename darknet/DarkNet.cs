@@ -128,6 +128,15 @@ public class DarkNet: IDarkNet {
         return (windowInfo.dwStyle & WindowStyles.WsVisible) != 0;
     }
 
+    /// <inheritdoc />
+    public void SetWindowThemeRaw(IntPtr windowHandle, Theme theme) {
+        if (IsWindowVisible(windowHandle)) {
+            throw new InvalidOperationException($"Called {nameof(SetWindowThemeRaw)}() too late, call it before the window is visible.");
+        }
+
+        SetModeForWindow(windowHandle, theme);
+    }
+
     /// <summary>
     ///     <para>call this after creating but before showing a window, such as WPF's Window.OnSourceInitialized or Forms' Form.Load</para>
     ///     <para>if window.Visibility==VISIBLE and WindowPlacement.ShowCmd == SW_HIDE (or whatever), it was definitely called too early </para>

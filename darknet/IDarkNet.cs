@@ -49,6 +49,18 @@ public interface IDarkNet: IDisposable {
     void SetWindowThemeForms(Form window, Theme theme);
 
     /// <summary>
+    ///     <para>Turn on dark mode for a window.</para>
+    ///     <para>This method is a lower-level alternative to <see cref="SetWindowThemeWpf"/> and <see cref="SetWindowThemeForms"/> for use when one of the windows in your application was created neither by WPF nor Windows Forms, but you still want to make its title bar dark.</para>
+    ///     <para>You must have already called <see cref="SetCurrentProcessTheme" /> before creating this window.</para>
+    ///     <para>You must call this method before the window is visible.</para>
+    /// </summary>
+    /// <remarks>The correct time to call this method is when the window has already been constructed, but it has not yet been shown (i.e. its Win32 window style must not be visible yet).</remarks>
+    /// <param name="windowHandle">A <c>HWND</c> handle to a Win32 window, which has been constructed but has not yet been shown.</param>
+    /// <param name="theme">The theme to use for this window, or <see cref="Theme.Auto"/> to inherit from the process (defined by the theme passed to <see cref="SetCurrentProcessTheme"/>) or the user's default app settings if you also set the app to <see cref="Theme.Auto"/> (defined in Settings › Personalization › Colors).</param>
+    /// <exception cref="InvalidOperationException">If this method was called too late.</exception>
+    void SetWindowThemeRaw(IntPtr windowHandle, Theme theme);
+
+    /// <summary>
     ///     <para>Whether windows that follow the user's default operating system theme, such as Windows Explorer, Command Prompt, and Settings, will use dark mode in their title bars, context menus, and other themed areas. Also known as "app mode" or "default app mode".</para>
     ///     <para>This reflects the user's preference in Settings › Personalization › Colors › Choose your default app mode.</para>
     ///     <para>Not affected by the taskbar theme, see <seealso cref="UserTaskbarThemeIsDark"/>.</para>

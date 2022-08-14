@@ -1,0 +1,45 @@
+name: .NET
+
+on:
+  push:
+    branches: [ master ]
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    env:
+      ProjectName: DarkNet
+
+    runs-on: windows-latest
+
+    steps:
+    - name: Clone repository
+      uses: actions/checkout@v3
+        
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build library
+      run: dotnet build ${{ env.ProjectName }} --no-restore --configuration Release
+
+    - name: Pack library
+      run: dotnet pack ${{ env.ProjectName }} --no-build --configuration Release
+
+    - name: Build demos
+      run: |
+        dotnet build darknet-demo-winforms --no-restore --configuration Release
+        dotnet publish darknet-demo-wpf --configuration Release -p:PublishSingleFile=true --runtime win-x86 --self-contained false
+
+    - name: Flatten artifacts
+      run: |
+        mkdir upload
+        copy ${{ env.ProjectName }}/bin/Release/*.*nupkg upload
+        copy darknet-demo-winforms/bin/Release/*.exe upload
+        copy darknet-demo-wpf/bin/Release/**/publish/*.exe upload
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ env.ProjectName }}
+        path: upload

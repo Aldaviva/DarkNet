@@ -64,15 +64,15 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="ILRepack.Lib.MSBuild.Task">
-      <Version>2.0.18.2</Version>
-    </PackageReference>
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\darknet\DarkNet.csproj">
       <Project>{8f367ec7-f0f9-4b96-8793-91f06ac78320}</Project>
       <Name>DarkNet</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="ILRepack.Lib.MSBuild">
+      <Version>2.1.18</Version>
+    </PackageReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
