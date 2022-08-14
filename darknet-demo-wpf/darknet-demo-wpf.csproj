@@ -7,6 +7,7 @@
         <UseWPF>true</UseWPF>
         <RootNamespace>darknet_demo_wpf</RootNamespace>
         <IsPackable>false</IsPackable>
+        <RuntimeIdentifiers>win-x86</RuntimeIdentifiers>
     </PropertyGroup>
 
     <ItemGroup>
