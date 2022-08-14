@@ -127,6 +127,8 @@ If you call it too late (such as after the window is shown), the calls will have
 
 ```cs
 // MainWindow.xaml.cs
+using Dark.Net;
+
 public partial class MainWindow {
 
     public MainWindow() {

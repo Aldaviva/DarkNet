@@ -1,4 +1,6 @@
-﻿using System.Windows.Forms;
+﻿#nullable enable
+
+using System.Windows.Forms;
 
 namespace darknet_demo_winforms;
 

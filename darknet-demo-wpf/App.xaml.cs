@@ -10,13 +10,16 @@ public partial class App {
         base.OnStartup(e);
 
         IDarkNet darkNet = DarkNet.Instance;
-        darkNet.SetCurrentProcessTheme(Theme.Auto);
+        // darkNet.SetCurrentProcessTheme(Theme.Auto);
 
         Console.WriteLine($"System is in {(darkNet.UserDefaultAppThemeIsDark ? "Dark" : "Light")} mode");
         Console.WriteLine($"Taskbar is in {(darkNet.UserTaskbarThemeIsDark ? "Dark" : "Light")} mode");
 
-        darkNet.UserDefaultAppThemeIsDarkChanged += (_, isSystemDarkMode) => { Console.WriteLine($"System changed to {(isSystemDarkMode ? "Dark" : "Light")} mode"); };
-        darkNet.UserTaskbarThemeIsDarkChanged    += (_, isTaskbarDarkMode) => { Console.WriteLine($"Taskbar changed to {(isTaskbarDarkMode ? "Dark" : "Light")} mode"); };
+        darkNet.UserDefaultAppThemeIsDarkChanged += (_, isSystemDarkTheme) => {
+            Console.WriteLine($"System changed to {(isSystemDarkTheme ? "Dark" : "Light")} theme");
+            // darkNet.SetCurrentProcessTheme(isSystemDarkTheme ? Theme.Light : Theme.Dark); // after first render, make title bar opposite of default app theme
+        };
+        darkNet.UserTaskbarThemeIsDarkChanged += (_, isTaskbarDarkTheme) => { Console.WriteLine($"Taskbar changed to {(isTaskbarDarkTheme ? "Dark" : "Light")} theme"); };
     }
 
 }

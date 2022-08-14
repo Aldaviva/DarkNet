@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.ComponentModel;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows;
@@ -37,6 +38,7 @@ public class DarkNet: IDarkNet {
     private bool?  _preferredDefaultAppThemeIsDark;
     private bool?  _preferredTaskbarThemeIsDark;
     private Theme? _preferredAppMode;
+    private int    _processThemeChanged; // int instead of bool to support Interlocked atomic operations
 
     /// <inheritdoc />
     public event EventHandler<bool>? UserDefaultAppThemeIsDarkChanged;
@@ -54,25 +56,29 @@ public class DarkNet: IDarkNet {
 
     /// <inheritdoc />
     public void SetCurrentProcessTheme(Theme theme) {
-        if (Application.Current?.MainWindow != null || Application.Current?.Windows.Count > 0 || System.Windows.Forms.Application.OpenForms.Count > 0) {
-            //doesn't help if other windows were already opened and closed before calling this
-            throw new InvalidOperationException($"Called {nameof(SetCurrentProcessTheme)}() too late, call it before any calls to Form.Show(), Window.Show(), Application.Run(), " +
-                $"{nameof(IDarkNet)}.{nameof(SetWindowThemeForms)}(), or {nameof(IDarkNet)}.{nameof(SetWindowThemeWpf)}()");
+        bool isFirstCall = Interlocked.CompareExchange(ref _processThemeChanged, 1, 0) == 0;
+        if (isFirstCall) {
+            if ((Application.Current?.Windows.Cast<Window>().Any(window => window.IsVisible) ?? false) || System.Windows.Forms.Application.OpenForms.Count > 0) {
+                //doesn't help if other windows were already opened and closed before calling this
+                throw new InvalidOperationException($"Called {nameof(SetCurrentProcessTheme)}() too late, call it before any calls to Form.Show(), Window.Show(), Application.Run(), " +
+                    $"{nameof(IDarkNet)}.{nameof(SetWindowThemeForms)}(), or {nameof(IDarkNet)}.{nameof(SetWindowThemeWpf)}()");
+            }
+
+            try {
+                // Windows 10 1903 and later
+                Win32.SetPreferredAppMode(AppMode.AllowDark);
+            } catch (Exception e1) when (e1 is not OutOfMemoryException) {
+                try {
+                    // Windows 10 1809 only
+                    Win32.AllowDarkModeForApp(true);
+                } catch (Exception e2) when (e2 is not OutOfMemoryException) {
+                    throw new Exception("Failed to set dark mode for process", e1); //TODO throw a different class
+                }
+            }
         }
 
         _preferredAppMode = theme;
-
-        try {
-            // Windows 10 1903 and later
-            Win32.SetPreferredAppMode(AppMode.AllowDark);
-        } catch (Exception e1) when (e1 is not OutOfMemoryException) {
-            try {
-                // Windows 10 1809 only
-                Win32.AllowDarkModeForApp(true);
-            } catch (Exception e2) when (e2 is not OutOfMemoryException) {
-                throw new Exception("Failed to set dark mode for process", e1); //TODO throw a different class
-            }
-        }
+        RefreshTitleBarThemeColor();
     }
 
     /// <inheritdoc />
@@ -80,29 +86,29 @@ public class DarkNet: IDarkNet {
     public void SetWindowThemeWpf(Window window, Theme theme) {
         bool isWindowInitialized = PresentationSource.FromVisual(window) != null;
         if (!isWindowInitialized) {
+            ImplicitlySetProcessThemeIfFirstCall(theme);
             window.SourceInitialized += OnSourceInitialized;
 
             void OnSourceInitialized(object? _, EventArgs eventArgs) {
                 window.SourceInitialized -= OnSourceInitialized;
                 SetWindowThemeWpf(window, theme);
             }
+        } else {
+            IntPtr windowHandle = new WindowInteropHelper(window).Handle;
+            if (IsWindowVisible(windowHandle)) {
+                throw new InvalidOperationException($"Called {nameof(SetWindowThemeWpf)}() too late, call it in OnSourceInitialized or the Window subclass's constructor");
+            }
 
-            return;
+            ImplicitlySetProcessThemeIfFirstCall(theme);
+            SetModeForWindow(windowHandle, theme);
+
+            void OnClosing(object _, CancelEventArgs args) {
+                window.Closing -= OnClosing;
+                OnWindowClosing(windowHandle);
+            }
+
+            window.Closing += OnClosing;
         }
-
-        IntPtr windowHandle = new WindowInteropHelper(window).Handle;
-        if (IsWindowVisible(windowHandle)) {
-            throw new InvalidOperationException($"Called {nameof(SetWindowThemeWpf)}() too late, call it in OnSourceInitialized or the Window subclass's constructor");
-        }
-
-        SetModeForWindow(windowHandle, theme);
-
-        void OnClosing(object _, CancelEventArgs args) {
-            window.Closing -= OnClosing;
-            OnWindowClosing(windowHandle);
-        }
-
-        window.Closing += OnClosing;
     }
 
     /// <inheritdoc />
@@ -112,6 +118,7 @@ public class DarkNet: IDarkNet {
                 $"{nameof(IDarkNet)}.{nameof(SetCurrentProcessTheme)}()");
         }
 
+        ImplicitlySetProcessThemeIfFirstCall(theme);
         SetModeForWindow(window.Handle, theme);
 
         void OnClosing(object _, CancelEventArgs args) {
@@ -122,19 +129,25 @@ public class DarkNet: IDarkNet {
         window.Closing += OnClosing;
     }
 
-    private static bool IsWindowVisible(IntPtr windowHandle) {
-        WindowInfo windowInfo = new(null);
-        Win32.GetWindowInfo(windowHandle, ref windowInfo);
-        return (windowInfo.dwStyle & WindowStyles.WsVisible) != 0;
-    }
-
     /// <inheritdoc />
     public void SetWindowThemeRaw(IntPtr windowHandle, Theme theme) {
         if (IsWindowVisible(windowHandle)) {
             throw new InvalidOperationException($"Called {nameof(SetWindowThemeRaw)}() too late, call it before the window is visible.");
         }
 
+        ImplicitlySetProcessThemeIfFirstCall(theme);
         SetModeForWindow(windowHandle, theme);
+    }
+
+    private static bool IsWindowVisible(IntPtr windowHandle) {
+        WindowInfo windowInfo = new(null);
+        return Win32.GetWindowInfo(windowHandle, ref windowInfo) && (windowInfo.dwStyle & WindowStyles.WsVisible) != 0;
+    }
+
+    private void ImplicitlySetProcessThemeIfFirstCall(Theme theme) {
+        if (Interlocked.CompareExchange(ref _processThemeChanged, 1, 0) == 0) {
+            SetCurrentProcessTheme(theme);
+        }
     }
 
     /// <summary>
@@ -155,9 +168,13 @@ public class DarkNet: IDarkNet {
 
     private void OnSettingsChanged(object sender, UserPreferenceChangedEventArgs args) {
         if (args.Category == UserPreferenceCategory.General && (_preferredDefaultAppThemeIsDark != UserDefaultAppThemeIsDark || _preferredTaskbarThemeIsDark != UserTaskbarThemeIsDark)) {
-            foreach (IntPtr trackedWindow in _preferredWindowModes.Keys) {
-                RefreshTitleBarThemeColor(trackedWindow);
-            }
+            RefreshTitleBarThemeColor();
+        }
+    }
+
+    private void RefreshTitleBarThemeColor() {
+        foreach (IntPtr trackedWindow in _preferredWindowModes.Keys) {
+            RefreshTitleBarThemeColor(trackedWindow);
         }
     }
 
@@ -233,11 +250,7 @@ public class DarkNet: IDarkNet {
         const int highContrastOn  = 0x1;
 
         HighContrastData highContrastData = new(null);
-        if (Win32.SystemParametersInfo(getHighContrast, highContrastData.size, ref highContrastData, 0)) {
-            return (highContrastData.flags & highContrastOn) != 0;
-        }
-
-        return false;
+        return Win32.SystemParametersInfo(getHighContrast, highContrastData.size, ref highContrastData, 0) && (highContrastData.flags & highContrastOn) != 0;
     }
 
     /// <inheritdoc />
