@@ -1,4 +1,4 @@
-DarkNet
+<img src="https://raw.githubusercontent.com/Aldaviva/DarkNet/master/DarkNet/icon.png" height="23" alt="DarkNet logo" /> DarkNet
 ===
 
 [![Nuget](https://img.shields.io/nuget/v/DarkNet?logo=nuget)](https://www.nuget.org/packages/DarkNet/) [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/Aldaviva/DarkNet/.NET?logo=github)](https://github.com/Aldaviva/DarkNet/actions/workflows/dotnetpackage.yml)
