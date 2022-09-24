@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -13,12 +14,12 @@ using Application = System.Windows.Application;
 namespace Dark.Net;
 
 /// <summary>
-/// <para>Implementation of the DarkNet library. Used for making title bars of your windows dark in Windows 10 and later.</para>
+/// <para>Implementation of the DarkNet library. Used for making title bars of your windows dark in Windows 10 1809 and later.</para>
 /// <para>Usage:</para>
 /// <list type="number">
 /// <item><description>Construct a new instance with <c>new DarkNet()</c>, or use the shared singleton <see cref="Instance"/>.</description></item>
-/// <item><description>Call <see cref="SetCurrentProcessTheme"/> before showing any windows in your process, such as in a <see cref="System.Windows.Application.Startup"/> event handler for your WPF process, or at the beginning of Main in your Forms process.</description></item>
-/// <item><description>Call <see cref="SetWindowThemeWpf"/> or <see cref="SetWindowThemeForms"/> before showing any windows in your process. For WPF, you should do this in <see cref="Window.SourceInitialized"/>. For Forms, you should do this after constructing the <see cref="Form"/> instance.</description></item>
+/// <item><description>Optionally, call <see cref="SetCurrentProcessTheme"/> before showing any windows in your process, such as in a <see cref="System.Windows.Application.Startup"/> event handler for your WPF program, or at the beginning of <c>Main</c> in your Forms program.</description></item>
+/// <item><description>Call <see cref="SetWindowThemeWpf"/> or <see cref="SetWindowThemeForms"/> for each window before you show it. For WPF, you should do this in <see cref="Window.SourceInitialized"/>. For Forms, you should do this after constructing the <see cref="Form"/> instance.</description></item>
 /// </list>
 /// </summary>
 public class DarkNet: IDarkNet {
@@ -35,8 +36,8 @@ public class DarkNet: IDarkNet {
 
     private readonly ConcurrentDictionary<IntPtr, Theme> _preferredWindowModes = new();
 
-    private bool?  _preferredDefaultAppThemeIsDark;
-    private bool?  _preferredTaskbarThemeIsDark;
+    private bool?  _userDefaultAppThemeIsDark;
+    private bool?  _userTaskbarThemeIsDark;
     private Theme? _preferredAppMode;
     private int    _processThemeChanged; // int instead of bool to support Interlocked atomic operations
 
@@ -72,7 +73,7 @@ public class DarkNet: IDarkNet {
                     // Windows 10 1809 only
                     Win32.AllowDarkModeForApp(true);
                 } catch (Exception e2) when (e2 is not OutOfMemoryException) {
-                    throw new Exception("Failed to set dark mode for process", e1); //TODO throw a different class
+                    Trace.TraceWarning("Failed to set dark mode for process: {0}", e1.Message);
                 }
             }
         }
@@ -167,7 +168,7 @@ public class DarkNet: IDarkNet {
     }
 
     private void OnSettingsChanged(object sender, UserPreferenceChangedEventArgs args) {
-        if (args.Category == UserPreferenceCategory.General && (_preferredDefaultAppThemeIsDark != UserDefaultAppThemeIsDark || _preferredTaskbarThemeIsDark != UserTaskbarThemeIsDark)) {
+        if (args.Category == UserPreferenceCategory.General && (_userDefaultAppThemeIsDark != UserDefaultAppThemeIsDark || _userTaskbarThemeIsDark != UserTaskbarThemeIsDark)) {
             RefreshTitleBarThemeColor();
         }
     }
@@ -219,29 +220,29 @@ public class DarkNet: IDarkNet {
     /// <inheritdoc />
     public bool UserDefaultAppThemeIsDark {
         get {
-            bool? oldValue = _preferredDefaultAppThemeIsDark;
+            bool? oldValue = _userDefaultAppThemeIsDark;
             // Unfortunately, the corresponding undocumented uxtheme.dll function (#132) always returns Dark in .NET Core runtimes for some reason, so we check the registry instead.
             // Verified on Windows 10 21H2 and Windows 11 21H2.
-            _preferredDefaultAppThemeIsDark = !Convert.ToBoolean(Registry.GetValue(PersonalizeKey, "AppsUseLightTheme", 1));
-            if (oldValue is not null && _preferredDefaultAppThemeIsDark != oldValue) {
-                UserDefaultAppThemeIsDarkChanged?.Invoke(this, _preferredDefaultAppThemeIsDark.Value);
+            _userDefaultAppThemeIsDark = !Convert.ToBoolean(Registry.GetValue(PersonalizeKey, "AppsUseLightTheme", 1));
+            if (oldValue is not null && _userDefaultAppThemeIsDark != oldValue) {
+                UserDefaultAppThemeIsDarkChanged?.Invoke(this, _userDefaultAppThemeIsDark.Value);
             }
 
-            return _preferredDefaultAppThemeIsDark.Value;
+            return _userDefaultAppThemeIsDark.Value;
         }
     }
 
     /// <inheritdoc />
     public bool UserTaskbarThemeIsDark {
         get {
-            bool? oldValue = _preferredTaskbarThemeIsDark;
-            // In Windows 10 1809, including Server 2019, the taskbar is always dark, and this registry value does not exist.
-            _preferredTaskbarThemeIsDark = !Convert.ToBoolean(Registry.GetValue(PersonalizeKey, "SystemUsesLightTheme", 0));
-            if (oldValue is not null && _preferredTaskbarThemeIsDark != oldValue) {
-                UserTaskbarThemeIsDarkChanged?.Invoke(this, _preferredTaskbarThemeIsDark.Value);
+            bool? oldValue = _userTaskbarThemeIsDark;
+            // In Windows 10 1809 and Server 2019, the taskbar is always dark, and this registry value does not exist.
+            _userTaskbarThemeIsDark = !Convert.ToBoolean(Registry.GetValue(PersonalizeKey, "SystemUsesLightTheme", 0));
+            if (oldValue is not null && _userTaskbarThemeIsDark != oldValue) {
+                UserTaskbarThemeIsDarkChanged?.Invoke(this, _userTaskbarThemeIsDark.Value);
             }
 
-            return _preferredTaskbarThemeIsDark.Value;
+            return _userTaskbarThemeIsDark.Value;
         }
     }
 

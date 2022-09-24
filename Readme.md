@@ -32,13 +32,13 @@ Enable native Windows dark mode for your WPF and Windows Forms title bars.
 - Windows
     - Windows 10 version 1809 (October 2018 Update) or later
     - Windows 11 or later
-    - You can also run your app on earlier Windows versions as well, but the title bar won't turn dark.
-- Windows Presentation Foundation or Windows Forms
+    - You can still run your program on earlier Windows versions as well, but the title bar won't turn dark.
+- Windows Presentation Foundation, Windows Forms, or access to the native window handle of other windows in your process
 
 <a id="installation"></a>
 ## Installation
 
-[DarkNet is available on NuGet Gallery](https://www.nuget.org/packages/DarkNet/).
+[DarkNet is available in NuGet Gallery.](https://www.nuget.org/packages/DarkNet/)
 
 ```ps1
 dotnet add package DarkNet
@@ -55,18 +55,16 @@ Install-Package DarkNet
 
 #### Entry point
 
-The top-level interface of this library is <code>Dark.Net.<strong>IDarkNet</strong></code>, which is implemented by the **`DarkNet`** class. A shared instance of this class is available from **`DarkNet.Instance`**, or you can construct a new instance with `new DarkNet()`.
+The top-level interface of this library is **`Dark.Net.IDarkNet`**, which is implemented by the **`DarkNet`** class. A shared instance of this class is available from **`DarkNet.Instance`**, or you can construct a new instance with `new DarkNet()`.
 
 #### Methods
 
-You must call **both** of the methods below to make a window use the dark theme. See the following sections for specific examples.
-
-1. First, call **`SetCurrentProcessTheme()`** to allow your process to change the themes of its windows, although it doesn't apply any themes on its own.
+1. First, you may optionally call **`SetCurrentProcessTheme(Theme)`** to define a default theme for your windows, although it doesn't actually apply the theme to any windows on its own.
     
-    If you don't call this method, all windows in your application will use the light theme, even if you call `SetWindowTheme*`.
-2. Next, call **`SetWindowTheme*()`** to actually apply the theme to each window. There are 3 methods to handle WPF, Forms, and raw `HWND` handles.
+    If you don't call this method, any window on which you call `SetWindowTheme*(myWindow, Theme.Auto)` will inherit its theme from the operating system's default app theme, skipping this app-level default.
+2. Next, you must call one of the **`SetWindowTheme*(Window, Theme)`** methods to actually apply a theme to each window. There are 3 methods to handle WPF, Forms, and raw `HWND` handles.
     
-    If you don't call one of these methods on a given window, that window will use the light theme, even if you called `SetCurrentProcessTheme`.
+    If you don't call one of these methods on a given window, that window will always use the light theme, even if you called `SetCurrentProcessTheme` and set the OS default app mode to dark.
 
 #### Themes
 
@@ -85,12 +83,9 @@ Try the [demo apps](#demos) to see this behavior in action.
 <a id="wpf"></a>
 ### WPF
 
-You must do both of the following steps.
-
-<a id="on-application-startup"></a>
 #### On application startup
 
-Before showing **any** windows in your application, you must call
+Before showing **any** windows in your application, you may optionally call
 ```cs
 IDarkNet.SetCurrentProcessTheme(theme);
 ```
@@ -112,10 +107,9 @@ public partial class App: Application {
 }
 ```
 
-<a id="before-showing-a-new-window"></a>
 #### Before showing a new window
 
-Before showing each window in your application, you have to set the theme for that window.
+Before showing **each** window in your application, you have to set the theme for that window.
 
 ```cs
 IDarkNet.SetWindowThemeWpf(window, theme);
@@ -123,7 +117,7 @@ IDarkNet.SetWindowThemeWpf(window, theme);
 
 A good place to call this is in the window's constructor **after the call to `InitializeComponent`**, or in an event handler for the window's **`SourceInitialized`** event.
 
-If you call it too late (such as after the window is shown), the calls will have no effect on Windows.
+If you call it too late (such as after the window is shown), the calls will have no effect.
 
 ```cs
 // MainWindow.xaml.cs
@@ -144,12 +138,9 @@ You must perform this step for **every** window you show in your application, no
 <a id="windows-forms"></a>
 ### Windows Forms
 
-You must do both of the following steps.
-
-<a id="on-application-startup-1"></a>
 #### On application startup
 
-Before showing **any** windows in your application, you must call
+Before showing **any** windows in your application, you may optionally call
 ```cs
 IDarkNet.SetCurrentProcessTheme(theme);
 ```
@@ -171,16 +162,15 @@ internal static class Program {
 }
 ```
 
-<a id="before-showing-a-new-window-1"></a>
 #### Before showing a new window
 
-Before showing each window in your application, you have to set the theme for that window.
+Before showing **each** window in your application, you have to set the theme for that window.
 
 ```cs
 IDarkNet.SetWindowThemeForms(window, theme);
 ```
 
-You must do this **before calling `Show()` or `Application.Run()`** to show the window. If you call it too late (such as after the window is shown), the calls will have no effect on Windows.
+You must do this **before calling `Show()` or `Application.Run()`** to show the window. If you call it too late (such as after the window is shown), the calls will have no effect.
 
 ```cs
 Form mainForm = new Form1();
@@ -189,7 +179,6 @@ DarkNet.Instance.SetWindowThemeForms(mainForm, Theme.Auto);
 
 You must perform this step for **every** window you show in your application, not just the first one.
 
-<a id="complete-example"></a>
 #### Complete example
 
 ```cs
@@ -218,21 +207,19 @@ internal static class Program {
 
 Windows introduced a preference to choose a dark or light taskbar in Windows 10 version 1903. This is controlled by Settings › Personalization › Colors › Choose your default Windows mode.
 
-DarkNet exposes the value of this preference with the <code>IDarkNet.<strong>UserTaskbarThemeIsDark</strong></code> property, as well as the change event <code>IDarkNet.<strong>UserTaskbarThemeIsDarkChanged</strong></code>. You can use these to render a tray icon in the notification area that matches the taskbar's theme, and re-render it when the user preference changes.
+DarkNet exposes the value of this preference with the **`UserTaskbarThemeIsDark`** property, as well as the change event **`UserTaskbarThemeIsDarkChanged`**. You can use these to render a tray icon in the notification area that matches the taskbar's theme, and re-render it when the user preference changes.
 
 <a id="demos"></a>
 ## Demos
 
 You can download the following precompiled demos, or clone this repository and build the demo projects yourself using Visual Studio Community 2022.
 
-<a id="wpf-1"></a>
 #### WPF
 
 Download and run `darknet-demo-wpf.exe` from the [latest release](https://github.com/Aldaviva/DarkNet/releases).
 
 ![WPF window with dark title bar](https://raw.githubusercontent.com/Aldaviva/DarkNet/master/.github/images/demo-wpf.png)
 
-<a id="windows-forms-1"></a>
 #### Windows Forms
 
 Download and run `darknet-demo-winforms.exe` from the [latest release](https://github.com/Aldaviva/DarkNet/releases).
@@ -242,7 +229,7 @@ Download and run `darknet-demo-winforms.exe` from the [latest release](https://g
 <a id="limitations"></a>
 ## Limitations
 - This library only changes the theme of the title bar/window chrome/non-client area, as well as the system context menu (the menu that appears when you right click on the title bar, or left click on the title bar icon, or hit `Alt`+`Space`). It does not change the theme of the client area of your window. It is up to you to make that look different when dark mode is enabled.
-- This library currently does not help you persist a user choice for the mode they want your application to use across separate process executions. You can expose an option and persist that yourself, then pass the desired `Theme` value to the methods in this library.
+- This library currently does not help you persist a user's choice for the mode they want your application to use across separate process executions. You can expose an option and persist that yourself, then pass the desired `Theme` value to the methods in this library.
 
 <a id="acknowledgements"></a>
 ## Acknowledgements
