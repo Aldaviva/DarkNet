@@ -39,7 +39,8 @@ public class DarkNet: IDarkNet {
     private bool?  _userDefaultAppThemeIsDark;
     private bool?  _userTaskbarThemeIsDark;
     private Theme? _preferredAppMode;
-    private int    _processThemeChanged; // int instead of bool to support Interlocked atomic operations
+
+    private volatile int _processThemeChanged; // int instead of bool to support Interlocked atomic operations
 
     /// <inheritdoc />
     public event EventHandler<bool>? UserDefaultAppThemeIsDarkChanged;
@@ -146,7 +147,7 @@ public class DarkNet: IDarkNet {
     }
 
     private void ImplicitlySetProcessThemeIfFirstCall(Theme theme) {
-        if (Interlocked.CompareExchange(ref _processThemeChanged, 1, 0) == 0) {
+        if (_processThemeChanged == 0) {
             SetCurrentProcessTheme(theme);
         }
     }
