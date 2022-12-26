@@ -2,7 +2,7 @@
 
     <PropertyGroup>
         <TargetFrameworks>netcoreapp3.1;net452</TargetFrameworks>
-        <Version>2.0.1</Version>
+        <Version>2.0.2</Version>
         <LangVersion>latest</LangVersion>
         <Nullable>enable</Nullable>
         <UseWindowsForms>true</UseWindowsForms>
@@ -28,6 +28,14 @@
         <!-- Not using the default DarkNet NS so that consumers don't have to qualify DarkNet.DarkNet, as NSes and types with the same name in C# are ambiguous, even with a using statement -->
         <RootNamespace>Dark.Net</RootNamespace>
     </PropertyGroup>
+
+    <ItemGroup>
+      <None Remove="ExceptionAdjustments.txt" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <AdditionalFiles Include="ExceptionAdjustments.txt" />
+    </ItemGroup>
 
     <ItemGroup>
         <None Include="icon.png" Pack="true" PackagePath="\" />

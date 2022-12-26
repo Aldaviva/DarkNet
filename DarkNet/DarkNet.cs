@@ -97,12 +97,12 @@ public class DarkNet: IDarkNet {
             }
         } else {
             IntPtr windowHandle = new WindowInteropHelper(window).Handle;
-            if (IsWindowVisible(windowHandle)) {
+
+            try {
+                SetModeForWindow(windowHandle, theme);
+            } catch (DarkNetException.LifecycleException) {
                 throw new InvalidOperationException($"Called {nameof(SetWindowThemeWpf)}() too late, call it in OnSourceInitialized or the Window subclass's constructor");
             }
-
-            ImplicitlySetProcessThemeIfFirstCall(theme);
-            SetModeForWindow(windowHandle, theme);
 
             void OnClosing(object _, CancelEventArgs args) {
                 window.Closing -= OnClosing;
@@ -115,13 +115,12 @@ public class DarkNet: IDarkNet {
 
     /// <inheritdoc />
     public void SetWindowThemeForms(Form window, Theme theme) {
-        if (IsWindowVisible(window.Handle)) {
+        try {
+            SetModeForWindow(window.Handle, theme);
+        } catch (DarkNetException.LifecycleException) {
             throw new InvalidOperationException($"Called {nameof(SetWindowThemeForms)}() too late, call it before Form.Show() or Application.Run(), and after " +
                 $"{nameof(IDarkNet)}.{nameof(SetCurrentProcessTheme)}()");
         }
-
-        ImplicitlySetProcessThemeIfFirstCall(theme);
-        SetModeForWindow(window.Handle, theme);
 
         void OnClosing(object _, CancelEventArgs args) {
             window.Closing -= OnClosing;
@@ -133,12 +132,11 @@ public class DarkNet: IDarkNet {
 
     /// <inheritdoc />
     public void SetWindowThemeRaw(IntPtr windowHandle, Theme theme) {
-        if (IsWindowVisible(windowHandle)) {
+        try {
+            SetModeForWindow(windowHandle, theme);
+        } catch (DarkNetException.LifecycleException) {
             throw new InvalidOperationException($"Called {nameof(SetWindowThemeRaw)}() too late, call it before the window is visible.");
         }
-
-        ImplicitlySetProcessThemeIfFirstCall(theme);
-        SetModeForWindow(windowHandle, theme);
     }
 
     private static bool IsWindowVisible(IntPtr windowHandle) {
@@ -157,8 +155,19 @@ public class DarkNet: IDarkNet {
     ///     <para>if window.Visibility==VISIBLE and WindowPlacement.ShowCmd == SW_HIDE (or whatever), it was definitely called too early </para>
     ///     <para>if GetWindowInfo().style.WS_VISIBLE == true then it was called too late</para>
     /// </summary>
+    /// <exception cref="DarkNetException.LifecycleException">if it is called too late</exception>
     private void SetModeForWindow(IntPtr windowHandle, Theme windowTheme) {
-        _preferredWindowModes[windowHandle] = windowTheme;
+        ImplicitlySetProcessThemeIfFirstCall(windowTheme);
+
+        bool isFirstRunForWindow = true;
+        _preferredWindowModes.AddOrUpdate(windowHandle, windowTheme, (_, _) => {
+            isFirstRunForWindow = false;
+            return windowTheme;
+        });
+
+        if (isFirstRunForWindow && IsWindowVisible(windowHandle)) {
+            throw new DarkNetException.LifecycleException("Called too late, call it before the window is visible.");
+        }
 
         Win32.AllowDarkModeForWindow(windowHandle, windowTheme != Theme.Light);
         RefreshTitleBarThemeColor(windowHandle);
