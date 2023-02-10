@@ -14,8 +14,11 @@ jobs:
     runs-on: windows-latest
 
     steps:
+    - name: Set up MSBuild
+      uses: microsoft/setup-msbuild@v1.3.1
+
     - name: Clone repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v3.3.0
         
     - name: Restore dependencies
       run: dotnet restore
@@ -26,11 +29,11 @@ jobs:
     - name: Pack library
       run: dotnet pack ${{ env.ProjectName }} --no-build --configuration Release
 
-    - name: Build Windows Forms demos
-      run: dotnet build darknet-demo-winforms --no-restore --configuration Release
+    - name: Build Windows Forms demo
+      run: msbuild darknet-demo-winforms -p:Configuration=Release -t:build -restore
 
     - name: Build WPF demo
-      run: dotnet publish darknet-demo-wpf --no-restore --configuration Release -p:PublishSingleFile=true --runtime win-x86 --self-contained false
+      run: dotnet publish darknet-demo-wpf --no-restore --configuration Release -p:PublishSingleFile=true --runtime win-x64 --self-contained false
 
     - name: Flatten artifacts
       run: |
@@ -40,7 +43,7 @@ jobs:
         copy darknet-demo-wpf/bin/Release/*/*/publish/*.exe upload
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v3.1.2
       with:
         name: ${{ env.ProjectName }}
         path: upload
