@@ -21,19 +21,19 @@ jobs:
       uses: actions/checkout@v3.3.0
         
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore --verbosity normal
 
     - name: Build library
-      run: dotnet build ${{ env.ProjectName }} --no-restore --configuration Release
+      run: dotnet build ${{ env.ProjectName }} --no-restore --configuration Release --verbosity normal
 
     - name: Pack library
-      run: dotnet pack ${{ env.ProjectName }} --no-build --configuration Release
+      run: dotnet pack ${{ env.ProjectName }} --no-build --configuration Release --verbosity normal
 
     - name: Build Windows Forms demo
-      run: msbuild darknet-demo-winforms -p:Configuration=Release -t:build
+      run: msbuild darknet-demo-winforms -p:Configuration=Release -t:build -restore
 
     - name: Build WPF demo
-      run: dotnet publish darknet-demo-wpf --no-restore --configuration Release -p:PublishSingleFile=true --runtime win-x64 --self-contained false
+      run: dotnet publish darknet-demo-wpf --no-restore --configuration Release -p:PublishSingleFile=true --runtime win-x64 --self-contained false --verbosity normal
 
     - name: Flatten artifacts
       run: |
