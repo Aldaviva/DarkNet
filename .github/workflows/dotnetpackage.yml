@@ -30,7 +30,7 @@ jobs:
       run: dotnet pack ${{ env.ProjectName }} --no-build --configuration Release
 
     - name: Build Windows Forms demo
-      run: msbuild darknet-demo-winforms -p:Configuration=Release -t:build -restore
+      run: msbuild darknet-demo-winforms -p:Configuration=Release -t:build
 
     - name: Build WPF demo
       run: dotnet publish darknet-demo-wpf --no-restore --configuration Release -p:PublishSingleFile=true --runtime win-x64 --self-contained false
