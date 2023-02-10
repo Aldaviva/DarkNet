@@ -11,7 +11,7 @@ internal static class Win32 {
 
     [return: MarshalAs(UnmanagedType.Bool)]
     [DllImport(User32, SetLastError = true)]
-    public static extern bool GetWindowInfo(IntPtr hwnd, ref WindowInfo pwi);
+    internal static extern bool GetWindowInfo(IntPtr hwnd, ref WindowInfo pwi);
 
     //these EntryPoint ordinals are decimal, not hexadecimal
     [DllImport(UxTheme, EntryPoint = "#104")]
@@ -57,6 +57,15 @@ internal static class Win32 {
     [DllImport(User32, CharSet = CharSet.Unicode, SetLastError = true)]
     internal static extern bool SystemParametersInfo(uint uiAction, uint uiParam, ref HighContrastData callback, uint fwinini);
 
+    [DllImport(User32, SetLastError = true)]
+    internal static extern uint SendMessage(IntPtr hWnd, uint message, IntPtr wParam, IntPtr lParam);
+
+    [DllImport(UxTheme, EntryPoint = "#136")]
+    internal static extern void FlushMenuThemes();
+
+    [DllImport(User32)]
+    internal static extern IntPtr GetForegroundWindow();
+
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -74,7 +83,7 @@ internal readonly struct WindowInfo {
     public readonly ushort               wCreatorVersion;
 
     public WindowInfo(bool? _): this() {
-        // Allows automatic initialization of "cbSize" with "new WINDOWINFO(null/true/false)".
+        // Allows automatic initialization of "cbSize" with "new WindowInfo(null/true/false)".
         cbSize = (uint) Marshal.SizeOf<WindowInfo>();
     }
 

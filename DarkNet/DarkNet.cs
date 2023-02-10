@@ -2,8 +2,10 @@
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security;
 using System.Threading;
 using System.Windows;
 using System.Windows.Forms;
@@ -14,7 +16,7 @@ using Application = System.Windows.Application;
 namespace Dark.Net;
 
 /// <summary>
-/// <para>Implementation of the DarkNet library. Used for making title bars of your windows dark in Windows 10 1809 and later.</para>
+/// <para>Implementation of the DarkNet library. Used for making title bars and context menus of your windows dark in Windows 10 1809 and later.</para>
 /// <para>Usage:</para>
 /// <list type="number">
 /// <item><description>Construct a new instance with <c>new DarkNet()</c>, or use the shared singleton <see cref="Instance"/>.</description></item>
@@ -30,7 +32,7 @@ public class DarkNet: IDarkNet {
 
     /// <summary>
     /// <para>Shared singleton instance of the <see cref="DarkNet"/> class that you can use without constructing your own instance. Created lazily the first time it is accessed.</para>
-    /// <para>You may want to construct your own instance using <c>new DarkNet()</c> in order to manage the memory lifecycle and dispose of it manually to avoid a <see cref="SystemEvents.UserPreferenceChanged"/> memory leak, or insulate yourself from other consumers that may try to dispose of <see cref="Instance"/>.</para>
+    /// <para>You may want to construct your own instance using <c>new DarkNet()</c> in order to manage the memory lifecycle and dispose of it manually to insulate yourself from other consumers that may try to dispose of <see cref="Instance"/>.</para>
     /// </summary>
     public static IDarkNet Instance => LazyInstance.Value;
 
@@ -50,32 +52,32 @@ public class DarkNet: IDarkNet {
 
     /// <summary>
     /// <para>Create a new instance of the DarkNet library class. Alternatively, you can use the static singleton <see cref="Instance"/>.</para>
-    /// <para>Useful if you want to manage the memory lifecycle and dispose of it manually to avoid a <see cref="SystemEvents.UserPreferenceChanged"/> memory leak, or insulate yourself from other consumers that may try to dispose of <see cref="Instance"/>.</para>
+    /// <para>Useful if you want to manage the memory lifecycle and dispose of it manually to insulate yourself from other consumers that may try to dispose of <see cref="Instance"/>.</para>
     /// </summary>
     public DarkNet() {
-        SystemEvents.UserPreferenceChanged += OnSettingsChanged;
+        try {
+            SystemEvents.UserPreferenceChanged += OnSettingsChanged;
+        } catch (ExternalException) { }
     }
 
     /// <inheritdoc />
     public void SetCurrentProcessTheme(Theme theme) {
         bool isFirstCall = Interlocked.CompareExchange(ref _processThemeChanged, 1, 0) == 0;
-        if (isFirstCall) {
-            if ((Application.Current?.Windows.Cast<Window>().Any(window => window.IsVisible) ?? false) || System.Windows.Forms.Application.OpenForms.Count > 0) {
-                //doesn't help if other windows were already opened and closed before calling this
-                throw new InvalidOperationException($"Called {nameof(SetCurrentProcessTheme)}() too late, call it before any calls to Form.Show(), Window.Show(), Application.Run(), " +
-                    $"{nameof(IDarkNet)}.{nameof(SetWindowThemeForms)}(), or {nameof(IDarkNet)}.{nameof(SetWindowThemeWpf)}()");
-            }
+        if (isFirstCall && ((Application.Current?.Windows.Cast<Window>().Any(window => window.IsVisible) ?? false) || System.Windows.Forms.Application.OpenForms.Count > 0)) {
+            //doesn't help if other windows were already opened and closed before calling this
+            throw new InvalidOperationException($"Called {nameof(SetCurrentProcessTheme)}() too late, call it before any calls to Form.Show(), Window.Show(), Application.Run(), " +
+                $"{nameof(IDarkNet)}.{nameof(SetWindowThemeForms)}(), or {nameof(IDarkNet)}.{nameof(SetWindowThemeWpf)}()");
+        }
 
+        try {
+            // Windows 10 1903 and later
+            Win32.SetPreferredAppMode(theme == Theme.Light ? AppMode.Default : AppMode.AllowDark);
+        } catch (Exception e1) when (e1 is not OutOfMemoryException) {
             try {
-                // Windows 10 1903 and later
-                Win32.SetPreferredAppMode(AppMode.AllowDark);
-            } catch (Exception e1) when (e1 is not OutOfMemoryException) {
-                try {
-                    // Windows 10 1809 only
-                    Win32.AllowDarkModeForApp(true);
-                } catch (Exception e2) when (e2 is not OutOfMemoryException) {
-                    Trace.TraceWarning("Failed to set dark mode for process: {0}", e1.Message);
-                }
+                // Windows 10 1809 only
+                Win32.AllowDarkModeForApp(true);
+            } catch (Exception e2) when (e2 is not OutOfMemoryException) {
+                Trace.TraceWarning("Failed to set dark mode for process: {0}", e1.Message);
             }
         }
 
@@ -208,7 +210,7 @@ public class DarkNet: IDarkNet {
 
         bool   isDarkMode               = windowMode == Theme.Dark;
         int    attributeValueBufferSize = Marshal.SizeOf(typeof(bool));
-        IntPtr attributeValueBuffer     = Marshal.AllocCoTaskMem(attributeValueBufferSize);
+        IntPtr attributeValueBuffer     = Marshal.AllocHGlobal(attributeValueBufferSize);
         Marshal.WriteInt32(attributeValueBuffer, Convert.ToInt32(isDarkMode));
 
         try {
@@ -220,45 +222,65 @@ public class DarkNet: IDarkNet {
                 // Windows 10 1809 only
                 Win32.SetProp(windowHandle, "UseImmersiveDarkModeColors", new IntPtr(Convert.ToInt64(isDarkMode)));
             } catch (Exception e2) when (e2 is not OutOfMemoryException) {
-                throw new ApplicationException("Failed to set dark mode for process", e2); //TODO throw a different class
+                Trace.TraceWarning("Failed to set dark mode for window: {0}", e1.Message);
             }
         } finally {
-            Marshal.FreeCoTaskMem(attributeValueBuffer);
+            Marshal.FreeHGlobal(attributeValueBuffer);
         }
+
+        /*
+         * Needed for subsequent (after the window has already been shown) theme changes, otherwise the title bar will only update after you later hide, blur, or resize the window.
+         * Not needed when changing the theme for the first time, before the window has ever been shown.
+         * Windows 11 does not need this.
+         * Windows 10 needs this (1809, 22H2, and likely every other version).
+         * Neither RedrawWindow() nor UpdateWindow() fix this.
+         * https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-ncactivate
+         */
+        const uint activateNonClientArea = 0x86;
+        bool       isWindowActive        = windowHandle == Win32.GetForegroundWindow();
+        Win32.SendMessage(windowHandle, activateNonClientArea, new IntPtr(isWindowActive ? 0 : 1), IntPtr.Zero);
+        Win32.SendMessage(windowHandle, activateNonClientArea, new IntPtr(isWindowActive ? 1 : 0), IntPtr.Zero);
+
+        // Needed to make the context menu theme change when you change the app theme after showing a window.
+        Win32.FlushMenuThemes();
     }
 
     /// <inheritdoc />
     public bool UserDefaultAppThemeIsDark {
         get {
-            bool? oldValue = _userDefaultAppThemeIsDark;
-            // Unfortunately, the corresponding undocumented uxtheme.dll function (#132) always returns Dark in .NET Core runtimes for some reason, so we check the registry instead.
-            // Verified on Windows 10 21H2 and Windows 11 21H2.
-            _userDefaultAppThemeIsDark = !Convert.ToBoolean(Registry.GetValue(PersonalizeKey, "AppsUseLightTheme", 1));
-            if (oldValue is not null && _userDefaultAppThemeIsDark != oldValue) {
-                UserDefaultAppThemeIsDarkChanged?.Invoke(this, _userDefaultAppThemeIsDark.Value);
-            }
+            try {
+                bool? oldValue = _userDefaultAppThemeIsDark;
+                // Unfortunately, the corresponding undocumented uxtheme.dll function (#132) always returns Dark in .NET Core runtimes for some reason, so we check the registry instead.
+                // Verified on Windows 10 21H2 and Windows 11 21H2.
+                _userDefaultAppThemeIsDark = !Convert.ToBoolean(Registry.GetValue(PersonalizeKey, "AppsUseLightTheme", 1) ?? 1);
+                if (oldValue is not null && _userDefaultAppThemeIsDark != oldValue) {
+                    UserDefaultAppThemeIsDarkChanged?.Invoke(this, _userDefaultAppThemeIsDark.Value);
+                }
+            } catch (SecurityException) { } catch (IOException) { } catch (FormatException) { }
 
-            return _userDefaultAppThemeIsDark.Value;
+            return _userDefaultAppThemeIsDark ?? false;
         }
     }
 
     /// <inheritdoc />
     public bool UserTaskbarThemeIsDark {
         get {
-            bool? oldValue = _userTaskbarThemeIsDark;
-            // In Windows 10 1809 and Server 2019, the taskbar is always dark, and this registry value does not exist.
-            _userTaskbarThemeIsDark = !Convert.ToBoolean(Registry.GetValue(PersonalizeKey, "SystemUsesLightTheme", 0));
-            if (oldValue is not null && _userTaskbarThemeIsDark != oldValue) {
-                UserTaskbarThemeIsDarkChanged?.Invoke(this, _userTaskbarThemeIsDark.Value);
-            }
+            try {
+                bool? oldValue = _userTaskbarThemeIsDark;
+                // In Windows 10 1809 and Server 2019, the taskbar is always dark, and this registry value does not exist.
+                _userTaskbarThemeIsDark = !Convert.ToBoolean(Registry.GetValue(PersonalizeKey, "SystemUsesLightTheme", 0) ?? 0);
+                if (oldValue is not null && _userTaskbarThemeIsDark != oldValue) {
+                    UserTaskbarThemeIsDarkChanged?.Invoke(this, _userTaskbarThemeIsDark.Value);
+                }
+            } catch (SecurityException) { } catch (IOException) { } catch (FormatException) { }
 
-            return _userTaskbarThemeIsDark.Value;
+            return _userTaskbarThemeIsDark ?? true;
         }
     }
 
     private static bool IsHighContrast() {
-        const int getHighContrast = 0x42;
-        const int highContrastOn  = 0x1;
+        const uint getHighContrast = 0x42;
+        const uint highContrastOn  = 0x1;
 
         HighContrastData highContrastData = new(null);
         return Win32.SystemParametersInfo(getHighContrast, highContrastData.size, ref highContrastData, 0) && (highContrastData.flags & highContrastOn) != 0;
@@ -266,7 +288,9 @@ public class DarkNet: IDarkNet {
 
     /// <inheritdoc />
     public void Dispose() {
-        SystemEvents.UserPreferenceChanged -= OnSettingsChanged;
+        try {
+            SystemEvents.UserPreferenceChanged -= OnSettingsChanged;
+        } catch (ExternalException) { }
     }
 
 }

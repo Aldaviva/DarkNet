@@ -9,13 +9,20 @@ public partial class App {
     protected override void OnStartup(StartupEventArgs e) {
         base.OnStartup(e);
 
-        IDarkNet darkNet = DarkNet.Instance;
+        const Theme processTheme = Theme.Auto;
+        IDarkNet    darkNet      = DarkNet.Instance;
+        darkNet.SetCurrentProcessTheme(processTheme);
+        Console.WriteLine($"Process theme is {processTheme}");
+        Console.WriteLine($"System theme is {(darkNet.UserDefaultAppThemeIsDark ? "Dark" : "Light")}");
+        Console.WriteLine($"Taskbar theme {(darkNet.UserTaskbarThemeIsDark ? "Dark" : "Light")}");
 
-        Console.WriteLine($"System is in {(darkNet.UserDefaultAppThemeIsDark ? "Dark" : "Light")} mode");
-        Console.WriteLine($"Taskbar is in {(darkNet.UserTaskbarThemeIsDark ? "Dark" : "Light")} mode");
+        darkNet.UserDefaultAppThemeIsDarkChanged += (_, isSystemDarkTheme) => { Console.WriteLine($"System theme is {(isSystemDarkTheme ? "Dark" : "Light")}"); };
+        darkNet.UserTaskbarThemeIsDarkChanged    += (_, isTaskbarDarkTheme) => { Console.WriteLine($"Taskbar theme is {(isTaskbarDarkTheme ? "Dark" : "Light")}"); };
+    }
 
-        darkNet.UserDefaultAppThemeIsDarkChanged += (_, isSystemDarkTheme) => { Console.WriteLine($"System changed to {(isSystemDarkTheme ? "Dark" : "Light")} theme"); };
-        darkNet.UserTaskbarThemeIsDarkChanged    += (_, isTaskbarDarkTheme) => { Console.WriteLine($"Taskbar changed to {(isTaskbarDarkTheme ? "Dark" : "Light")} theme"); };
+    protected override void OnExit(ExitEventArgs e) {
+        DarkNet.Instance.Dispose();
+        base.OnExit(e);
     }
 
 }

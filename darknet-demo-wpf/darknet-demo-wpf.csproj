@@ -7,11 +7,25 @@
         <UseWPF>true</UseWPF>
         <RootNamespace>darknet_demo_wpf</RootNamespace>
         <IsPackable>false</IsPackable>
-        <RuntimeIdentifiers>win-x86</RuntimeIdentifiers>
+        <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+        <ApplicationIcon>icon.ico</ApplicationIcon>
+        <RollForward>major</RollForward>
     </PropertyGroup>
 
     <ItemGroup>
+        <None Remove="icon.png" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Content Include="icon.ico" />
+    </ItemGroup>
+
+    <ItemGroup>
         <ProjectReference Include="..\darknet\DarkNet.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Resource Include="icon.png" />
     </ItemGroup>
 
     <ItemGroup>

@@ -1,8 +1,9 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+﻿<!--EXTERNAL_PROPERTIES: GITHUB_ACTIONS-->
+<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <TargetFrameworks>netcoreapp3.1;net452</TargetFrameworks>
-        <Version>2.0.2</Version>
+        <Version>2.1.0</Version>
         <LangVersion>latest</LangVersion>
         <Nullable>enable</Nullable>
         <UseWindowsForms>true</UseWindowsForms>
@@ -12,7 +13,7 @@
         <Product>DarkNet</Product>
         <Authors>Ben Hutchison</Authors>
         <Company>Ben Hutchison</Company>
-        <Copyright>© 2022 Ben Hutchison</Copyright>
+        <Copyright>© 2023 Ben Hutchison</Copyright>
         <Description>Enable native Windows dark mode for your WPF and Windows Forms title bars.</Description>
         <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
         <PackageProjectUrl>https://github.com/Aldaviva/DarkNet</PackageProjectUrl>
@@ -24,6 +25,8 @@
         <SymbolPackageFormat>snupkg</SymbolPackageFormat>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <PackageIcon>icon.png</PackageIcon>
+        <EmbedUntrackedSources>true</EmbedUntrackedSources>
+        <PublishRepositoryUrl>true</PublishRepositoryUrl>
 
         <!-- Not using the default DarkNet NS so that consumers don't have to qualify DarkNet.DarkNet, as NSes and types with the same name in C# are ambiguous, even with a using statement -->
         <RootNamespace>Dark.Net</RootNamespace>
@@ -40,5 +43,13 @@
     <ItemGroup>
         <None Include="icon.png" Pack="true" PackagePath="\" />
     </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
+    </ItemGroup>
+
+    <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == 'true' or '$(Configuration)' == 'Release'">
+        <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    </PropertyGroup>
 
 </Project>

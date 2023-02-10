@@ -6,3 +6,8 @@
 # See ECMA-334, 5th Ed. § D.4.2 "ID string format" for a description of the ID format.
 
 M:System.Collections.Concurrent.ConcurrentDictionary`2.AddOrUpdate(`0,`1,System.Func{`0,`1,`1}) -T:System.OverflowException
+M:System.IntPtr.#ctor(System.Int64) -T:System.OverflowException
+P:System.Lazy`1.Value get -T:System.MemberAccessException
+P:System.Lazy`1.Value get -T:System.MissingMemberException
+M:System.Runtime.InteropServices.Marshal.AllocHGlobal(System.Int32) -T:System.OutOfMemoryException
+M:System.Runtime.InteropServices.Marshal.WriteInt32(System.IntPtr,System.Int32) -T:System.AccessViolationException

@@ -4,8 +4,10 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="Windows Presentation Foundation demonstration on .NET 6" Height="450" Width="800" Background="#FF131313">
+        Title="WPF demo - .NET 6 - DarkNet" Height="450" Width="800" Background="#FF131313" Icon="/icon.png">
     <Grid>
-        <Label Content="Try changing your color mode in Windows Settings to see this app's title bar react." HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
+        <Label Content="Try changing your color mode in Windows Settings to see this app's title bar and menu react." HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White" />
+        <CheckBox x:Name="darkModeCheckbox" Content="Dark mode" HorizontalAlignment="Center" Margin="0,86,0,0" VerticalAlignment="Center" Click="onDarkModeCheckboxChanged"
+                  Foreground="White" IsThreeState="True" IsChecked="{x:Null}" />
     </Grid>
 </Window>
