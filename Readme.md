@@ -6,7 +6,7 @@
 Enable native Windows dark mode for your WPF and Windows Forms title bars.
 
 <!-- Absolute URL so the URL resolves when viewed not on GitHub, for example, on NuGet Gallery -->
-![WPF window with dark title bar](https://raw.githubusercontent.com/Aldaviva/DarkNet/master/.github/images/demo-wpf.png)
+![WPF window with dark title bar](https://raw.githubusercontent.com/Aldaviva/DarkNet/master/.github/images/demo-wpf2.png)
 
 <!-- MarkdownTOC autolink="true" bracket="round" autoanchor="false" levels="1,2,3,4" -->
 
@@ -258,7 +258,7 @@ Download and run `darknet-demo-wpf.exe` from the [latest release](https://github
 
 Requires [.NET Desktop Runtime 6 x64](https://dotnet.microsoft.com/en-us/download/dotnet/6.0) or later.
 
-![WPF window with dark title bar](https://raw.githubusercontent.com/Aldaviva/DarkNet/master/.github/images/demo-wpf.png)
+![WPF window with dark title bar](https://raw.githubusercontent.com/Aldaviva/DarkNet/master/.github/images/demo-wpf2.png)
 
 ### Windows Forms
 
@@ -266,7 +266,7 @@ Download and run `darknet-demo-winforms.exe` from the [latest release](https://g
 
 Requires [.NET Framework 4.8](https://dotnet.microsoft.com/en-us/download/dotnet-framework) or later.
 
-![Windows Forms window with dark title bar](https://raw.githubusercontent.com/Aldaviva/DarkNet/master/.github/images/demo-winforms.png)
+![Windows Forms window with dark title bar](https://raw.githubusercontent.com/Aldaviva/DarkNet/master/.github/images/demo-winforms2.png)
 
 ## Limitations
 - This library only changes the theme of the title bar/window chrome/non-client area, as well as the system context menu (the menu that appears when you right click on the title bar, or left click on the title bar icon, or hit `Alt`+`Space`). It does not change the theme of the client area of your window. It is up to you to make that look different when dark mode is enabled. This is difficult with Windows Forms, [particularly on .NET Core](https://github.com/gitextensions/gitextensions/issues/9191).
