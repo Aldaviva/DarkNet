@@ -3,7 +3,6 @@ name: .NET
 on:
   push:
     branches: [ master ]
-
   workflow_dispatch:
 
 jobs:
@@ -14,7 +13,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - name: Set up MSBuild
+    - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v1.3.1
 
     - name: Clone repository
@@ -30,7 +29,7 @@ jobs:
       run: dotnet pack ${{ env.ProjectName }} --no-build --configuration Release --verbosity normal
 
     - name: Build Windows Forms demo
-      run: msbuild darknet-demo-winforms -p:Configuration=Release -t:build -restore
+      run: msbuild darknet-demo-winforms -p:Configuration=Release -t:build -restore -m
 
     - name: Build WPF demo
       run: dotnet publish darknet-demo-wpf --no-restore --configuration Release -p:PublishSingleFile=true --runtime win-x64 --self-contained false --verbosity normal
@@ -47,3 +46,4 @@ jobs:
       with:
         name: ${{ env.ProjectName }}
         path: upload
+        if-no-files-found: error

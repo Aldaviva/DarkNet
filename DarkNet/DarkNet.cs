@@ -71,7 +71,12 @@ public class DarkNet: IDarkNet {
 
         try {
             // Windows 10 1903 and later
-            Win32.SetPreferredAppMode(theme == Theme.Light ? AppMode.Default : AppMode.AllowDark);
+            Win32.SetPreferredAppMode(theme switch {
+                Theme.Light => AppMode.Default,
+                Theme.Auto  => AppMode.AllowDark,
+                Theme.Dark  => AppMode.ForceDark,
+                _           => AppMode.Default
+            });
         } catch (Exception e1) when (e1 is not OutOfMemoryException) {
             try {
                 // Windows 10 1809 only
