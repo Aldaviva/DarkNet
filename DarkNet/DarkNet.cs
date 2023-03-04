@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security;
 using System.Threading;
@@ -11,7 +10,6 @@ using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Interop;
 using Microsoft.Win32;
-using Application = System.Windows.Application;
 
 namespace Dark.Net;
 
@@ -40,7 +38,8 @@ public class DarkNet: IDarkNet {
 
     private bool?  _userDefaultAppThemeIsDark;
     private bool?  _userTaskbarThemeIsDark;
-    private Theme? _preferredAppMode;
+    private Theme? _preferredAppTheme;
+    private bool   _effectiveCurrentProcessThemeIsDark;
 
     private volatile int _processThemeChanged; // int instead of bool to support Interlocked atomic operations
 
@@ -49,6 +48,9 @@ public class DarkNet: IDarkNet {
 
     /// <inheritdoc />
     public event EventHandler<bool>? UserTaskbarThemeIsDarkChanged;
+
+    /// <inheritdoc />
+    public event EventHandler<bool>? EffectiveCurrentProcessThemeIsDarkChanged;
 
     /// <summary>
     /// <para>Create a new instance of the DarkNet library class. Alternatively, you can use the static singleton <see cref="Instance"/>.</para>
@@ -62,12 +64,7 @@ public class DarkNet: IDarkNet {
 
     /// <inheritdoc />
     public void SetCurrentProcessTheme(Theme theme) {
-        bool isFirstCall = Interlocked.CompareExchange(ref _processThemeChanged, 1, 0) == 0;
-        if (isFirstCall && ((Application.Current?.Windows.Cast<Window>().Any(window => window.IsVisible) ?? false) || System.Windows.Forms.Application.OpenForms.Count > 0)) {
-            //doesn't help if other windows were already opened and closed before calling this
-            throw new InvalidOperationException($"Called {nameof(SetCurrentProcessTheme)}() too late, call it before any calls to Form.Show(), Window.Show(), Application.Run(), " +
-                $"{nameof(IDarkNet)}.{nameof(SetWindowThemeForms)}(), or {nameof(IDarkNet)}.{nameof(SetWindowThemeWpf)}()");
-        }
+        _processThemeChanged = 1;
 
         try {
             // Windows 10 1903 and later
@@ -86,7 +83,7 @@ public class DarkNet: IDarkNet {
             }
         }
 
-        _preferredAppMode = theme;
+        _preferredAppTheme = theme;
         RefreshTitleBarThemeColor();
     }
 
@@ -197,26 +194,35 @@ public class DarkNet: IDarkNet {
     }
 
     private void RefreshTitleBarThemeColor(IntPtr windowHandle) {
-        if (!_preferredWindowModes.TryGetValue(windowHandle, out Theme windowMode)) {
-            windowMode = Theme.Auto;
+        if (!_preferredWindowModes.TryGetValue(windowHandle, out Theme windowTheme)) {
+            windowTheme = Theme.Auto;
         }
 
-        if (windowMode == Theme.Auto) {
-            windowMode = _preferredAppMode ?? Theme.Auto;
+        Theme appTheme                  = _preferredAppTheme ?? Theme.Auto;
+        bool  userDefaultAppThemeIsDark = UserDefaultAppThemeIsDark;
+        bool  isHighContrast            = IsHighContrast();
+
+        if (appTheme == Theme.Auto) {
+            appTheme = userDefaultAppThemeIsDark ? Theme.Dark : Theme.Light;
         }
 
-        if (windowMode == Theme.Auto) {
-            windowMode = UserDefaultAppThemeIsDark ? Theme.Dark : Theme.Light;
+        if (windowTheme == Theme.Auto) {
+            windowTheme = appTheme;
         }
 
-        if (!Win32.IsDarkModeAllowedForWindow(windowHandle) || IsHighContrast()) {
-            windowMode = Theme.Light;
+        if (isHighContrast) {
+            windowTheme = Theme.Light;
+            appTheme    = Theme.Light;
+        } else if (!Win32.IsDarkModeAllowedForWindow(windowHandle)) {
+            windowTheme = Theme.Light;
         }
 
-        bool   isDarkMode               = windowMode == Theme.Dark;
+        EffectiveCurrentProcessThemeIsDark = appTheme == Theme.Dark;
+
+        bool   isDarkTheme              = windowTheme == Theme.Dark;
         int    attributeValueBufferSize = Marshal.SizeOf(typeof(bool));
         IntPtr attributeValueBuffer     = Marshal.AllocHGlobal(attributeValueBufferSize);
-        Marshal.WriteInt32(attributeValueBuffer, Convert.ToInt32(isDarkMode));
+        Marshal.WriteInt32(attributeValueBuffer, Convert.ToInt32(isDarkTheme));
 
         try {
             // Windows 10 1903 and later
@@ -225,7 +231,7 @@ public class DarkNet: IDarkNet {
         } catch (Exception e1) when (e1 is not OutOfMemoryException) {
             try {
                 // Windows 10 1809 only
-                Win32.SetProp(windowHandle, "UseImmersiveDarkModeColors", new IntPtr(Convert.ToInt64(isDarkMode)));
+                Win32.SetProp(windowHandle, "UseImmersiveDarkModeColors", new IntPtr(Convert.ToInt64(isDarkTheme)));
             } catch (Exception e2) when (e2 is not OutOfMemoryException) {
                 Trace.TraceWarning("Failed to set dark mode for window: {0}", e1.Message);
             }
@@ -280,6 +286,17 @@ public class DarkNet: IDarkNet {
             } catch (SecurityException) { } catch (IOException) { } catch (FormatException) { }
 
             return _userTaskbarThemeIsDark ?? true;
+        }
+    }
+
+    /// <inheritdoc />
+    public bool EffectiveCurrentProcessThemeIsDark {
+        get => _effectiveCurrentProcessThemeIsDark;
+        private set {
+            if (value != _effectiveCurrentProcessThemeIsDark) {
+                _effectiveCurrentProcessThemeIsDark = value;
+                EffectiveCurrentProcessThemeIsDarkChanged?.Invoke(this, value);
+            }
         }
     }
 

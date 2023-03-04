@@ -1,4 +1,4 @@
-<img src="https://raw.githubusercontent.com/Aldaviva/DarkNet/master/DarkNet/icon.png" height="23" alt="DarkNet logo" /> DarkNet
+![DarkNet logo](https://raw.githubusercontent.com/Aldaviva/DarkNet/master/.github/images/readme-logo.png) DarkNet
 ===
 
 [![Nuget](https://img.shields.io/nuget/v/DarkNet?logo=nuget)](https://www.nuget.org/packages/DarkNet/) [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/Aldaviva/darknet/dotnetpackage.yml?branch=master&logo=github)](https://github.com/Aldaviva/DarkNet/actions/workflows/dotnetpackage.yml)
@@ -28,6 +28,7 @@ Enable native Windows dark mode for your WPF and Windows Forms title bars.
         - [After showing a window](#after-showing-a-window-1)
         - [Complete example](#complete-example-1)
     - [HWND](#hwnd)
+    - [Effective application theme](#effective-application-theme)
     - [Taskbar theme](#taskbar-theme)
 - [Demos](#demos)
     - [WPF](#wpf-1)
@@ -242,6 +243,12 @@ See also the demo [`Program.cs`](https://github.com/Aldaviva/DarkNet/blob/master
 
 If you want to change the theme of a window in your application that was not created with WPF or Windows Forms, you can also just pass the raw HWND of the window to `SetWindowThemeRaw(IntPtr, Theme)`.
 
+### Effective application theme
+
+If you want to know which theme was rendered as a result of setting your app's theme to `Auto` using `SetCurrentProcessTheme`, you can call **`EffectiveCurrentProcessThemeIsDark`**. This will return whether the actual title bar theme is dark or light, and it reflects the theme you set, the user's OS color settings, and the high contrast setting. Changes are emitted from the **`EffectiveCurrentProcessThemeIsDark`** event.
+
+This can be useful if you want to set the theme to `Auto` and then skin your app's client area based on the Windows default app mode setting.
+
 ### Taskbar theme
 
 Windows introduced a preference to choose a dark or light taskbar in Windows 10 version 1903. This is controlled by Settings › Personalization › Colors › Choose your default Windows mode.
@@ -254,7 +261,7 @@ You can download the following precompiled demos, or clone this repository and b
 
 ### WPF
 
-Download and run `darknet-demo-wpf.exe` from the [latest release](https://github.com/Aldaviva/DarkNet/releases).
+Download and run `darknet-demo-wpf.exe` from the [latest release](https://github.com/Aldaviva/DarkNet/releases), or [view source](https://github.com/Aldaviva/DarkNet/blob/master/darknet-demo-wpf/App.xaml.cs).
 
 Requires [.NET Desktop Runtime 6 x64](https://dotnet.microsoft.com/en-us/download/dotnet/6.0) or later.
 
@@ -262,14 +269,15 @@ Requires [.NET Desktop Runtime 6 x64](https://dotnet.microsoft.com/en-us/downloa
 
 ### Windows Forms
 
-Download and run `darknet-demo-winforms.exe` from the [latest release](https://github.com/Aldaviva/DarkNet/releases).
+Download and run `darknet-demo-winforms.exe` from the [latest release](https://github.com/Aldaviva/DarkNet/releases), or [view source](https://github.com/Aldaviva/DarkNet/blob/master/darknet-demo-winforms/Program.cs).
 
 Requires [.NET Framework 4.8](https://dotnet.microsoft.com/en-us/download/dotnet-framework) or later.
 
 ![Windows Forms window with dark title bar](https://raw.githubusercontent.com/Aldaviva/DarkNet/master/.github/images/demo-winforms2.png)
 
 ## Limitations
-- This library only changes the theme of the title bar/window chrome/non-client area, as well as the system context menu (the menu that appears when you right click on the title bar, or left click on the title bar icon, or hit `Alt`+`Space`). It does not change the theme of the client area of your window. It is up to you to make that look different when dark mode is enabled. This is difficult with Windows Forms, [particularly on .NET Core](https://github.com/gitextensions/gitextensions/issues/9191).
+- This library only changes the theme of the title bar/window chrome/non-client area, as well as the system context menu (the menu that appears when you right click on the title bar, or left click on the title bar icon, or hit `Alt`+`Space`). It does not change the theme of the client area of your window. It is up to you to make that look different when dark mode is enabled. This is difficult with Windows Forms, [particularly in .NET Core](https://github.com/gitextensions/gitextensions/issues/9191).
+    - For a simple example of automatically switching WPF resource dictionaries to render dark and light mode skins, see [Aldaviva/Trainers](https://github.com/Aldaviva/Trainers/blob/master/TrainerCommon/App/CommonApp.cs).
 - This library currently does not help you persist a user's choice for the mode they want your application to use across separate process executions. You can expose an option and persist that yourself, then pass the desired `Theme` value to the methods in this library.
 
 ## Acknowledgements

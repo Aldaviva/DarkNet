@@ -3,7 +3,7 @@
 
     <PropertyGroup>
         <TargetFrameworks>netcoreapp3.1;net452</TargetFrameworks>
-        <Version>2.1.1</Version>
+        <Version>2.2.0-SNAPSHOT1</Version>
         <LangVersion>latest</LangVersion>
         <Nullable>enable</Nullable>
         <UseWindowsForms>true</UseWindowsForms>
@@ -27,6 +27,7 @@
         <PackageIcon>icon.png</PackageIcon>
         <EmbedUntrackedSources>true</EmbedUntrackedSources>
         <PublishRepositoryUrl>true</PublishRepositoryUrl>
+        <PackageReadmeFile>Readme.md</PackageReadmeFile>
 
         <!-- Not using the default DarkNet NS so that consumers don't have to qualify DarkNet.DarkNet, as NSes and types with the same name in C# are ambiguous, even with a using statement -->
         <RootNamespace>Dark.Net</RootNamespace>
@@ -42,6 +43,7 @@
 
     <ItemGroup>
         <None Include="icon.png" Pack="true" PackagePath="\" />
+        <None Include="..\Readme.md" Pack="true" PackagePath="\"/>
     </ItemGroup>
 
     <ItemGroup>

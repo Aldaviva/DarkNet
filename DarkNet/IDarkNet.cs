@@ -29,7 +29,6 @@ public interface IDarkNet: IDisposable {
     ///     <para>This method doesn't actually make your title bars dark. It defines the default theme to use if you set a window's theme to <see cref="Theme.Auto"/> using <see cref="SetWindowThemeWpf" />/<see cref="SetWindowThemeForms"/>.</para>
     /// </summary>
     /// <param name="theme">The theme that windows of your process should use. This theme overrides the user's settings and is overridden by the window theme you set later, unless you set the theme to <see cref="Theme.Auto"/>, in which case it inherits from the user's settings.</param>
-    /// <exception cref="InvalidOperationException">If this method was called for the first time after creating or showing any windows in your app. It has to be called before that, e.g. as the first statement in <c>OnStartup</c> or <c>Main</c>.</exception>
     void SetCurrentProcessTheme(Theme theme);
 
     /// <summary>
@@ -81,6 +80,19 @@ public interface IDarkNet: IDisposable {
     /// </summary>
     /// <returns><c>true</c> if the user's Windows Mode is Dark, or <c>false</c> if it is Light.</returns>
     bool UserTaskbarThemeIsDark { get; }
+
+    /// <summary>
+    /// <para>Whether the current's processes app theme is light (<see langword="false"/>) or dark (<see langword="true"/>).</para>
+    /// <para>For example, you can use this value to load different skins for your app based on the actual title bar color.</para>
+    /// <para>This is based on the last value you set with <see cref="SetCurrentProcessTheme"/>. It can differ from that value if you set it to <see cref="Theme.Auto"/>, in which case this will return the value from the OS user account's default app theme preference (<see cref="UserDefaultAppThemeIsDark"/>). It will also return <see langword="true"/> if high contrast mode is enabled in Windows.</para>
+    /// <para>For this property's change event, see <see cref="EffectiveCurrentProcessThemeIsDarkChanged"/>.</para>
+    /// </summary>
+    bool EffectiveCurrentProcessThemeIsDark { get; }
+
+    /// <summary>
+    /// <para>Fired whenever <see cref="EffectiveCurrentProcessThemeIsDark"/> changes, including as a result of calling <see cref="SetCurrentProcessTheme"/> or changing the OS color settings.</para>
+    /// </summary>
+    event EventHandler<bool>? EffectiveCurrentProcessThemeIsDarkChanged;
 
     /// <summary>
     /// <para>Fired when the value of <see cref="UserDefaultAppThemeIsDark"/> changes.</para>
