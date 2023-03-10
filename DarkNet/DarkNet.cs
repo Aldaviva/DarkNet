@@ -39,7 +39,7 @@ public class DarkNet: IDarkNet {
     private bool?  _userDefaultAppThemeIsDark;
     private bool?  _userTaskbarThemeIsDark;
     private Theme? _preferredAppTheme;
-    private bool   _effectiveCurrentProcessThemeIsDark;
+    private bool?  _effectiveCurrentProcessThemeIsDark;
 
     private volatile int _processThemeChanged; // int instead of bool to support Interlocked atomic operations
 
@@ -84,7 +84,17 @@ public class DarkNet: IDarkNet {
         }
 
         _preferredAppTheme = theme;
+
         RefreshTitleBarThemeColor();
+
+        if (_effectiveCurrentProcessThemeIsDark == null) {
+            EffectiveCurrentProcessThemeIsDark = theme switch {
+                Theme.Auto  => UserDefaultAppThemeIsDark && !IsHighContrast(),
+                Theme.Light => false,
+                Theme.Dark  => !IsHighContrast(),
+                _           => false
+            };
+        }
     }
 
     /// <inheritdoc />
@@ -291,7 +301,7 @@ public class DarkNet: IDarkNet {
 
     /// <inheritdoc />
     public bool EffectiveCurrentProcessThemeIsDark {
-        get => _effectiveCurrentProcessThemeIsDark;
+        get => _effectiveCurrentProcessThemeIsDark ?? false;
         private set {
             if (value != _effectiveCurrentProcessThemeIsDark) {
                 _effectiveCurrentProcessThemeIsDark = value;

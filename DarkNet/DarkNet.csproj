@@ -3,7 +3,7 @@
 
     <PropertyGroup>
         <TargetFrameworks>netcoreapp3.1;net452</TargetFrameworks>
-        <Version>2.2.0-SNAPSHOT1</Version>
+        <Version>2.2.0-SNAPSHOT2</Version>
         <LangVersion>latest</LangVersion>
         <Nullable>enable</Nullable>
         <UseWindowsForms>true</UseWindowsForms>
@@ -43,7 +43,7 @@
 
     <ItemGroup>
         <None Include="icon.png" Pack="true" PackagePath="\" />
-        <None Include="..\Readme.md" Pack="true" PackagePath="\"/>
+        <None Include="..\Readme.md" Pack="true" PackagePath="\" />
     </ItemGroup>
 
     <ItemGroup>
