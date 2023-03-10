@@ -245,9 +245,9 @@ If you want to change the theme of a window in your application that was not cre
 
 ### Effective application theme
 
-If you want to know which theme was rendered as a result of setting your app's theme to `Auto` using `SetCurrentProcessTheme`, you can call **`EffectiveCurrentProcessThemeIsDark`**. This will return whether the actual title bar theme is dark or light, and it reflects the theme you set, the user's OS color settings, and the high contrast setting. Changes are emitted from the **`EffectiveCurrentProcessThemeIsDark`** event.
+If you want to know which theme was rendered as a result of setting your app's theme to `Auto` using `SetCurrentProcessTheme`, you can call **`EffectiveCurrentProcessThemeIsDark`**. This will return whether the actual title bar theme is dark or light, and it reflects the theme you set, the user's OS color settings, and the high contrast setting. Changes are emitted from the **`EffectiveCurrentProcessThemeIsDarkChanged`** event.
 
-This can be useful if you want to set the theme to `Auto` and then skin your app's client area based on the Windows default app mode setting.
+This can be useful if you want to set the theme to `Auto` and then skin your app's client area based on the Windows default app mode setting. It also helps you keep a single, authoritative copy of this state instead of having to maintain a second one and keep them in sync.
 
 ### Taskbar theme
 

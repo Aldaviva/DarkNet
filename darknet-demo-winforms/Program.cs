@@ -14,6 +14,7 @@ internal static class Program {
         Application.SetCompatibleTextRenderingDefault(false);
 
         IDarkNet darkNet = DarkNet.Instance;
+        darkNet.SetCurrentProcessTheme(Theme.Auto);
 
         Form mainForm = new Form1();
         darkNet.SetWindowThemeForms(mainForm, Theme.Auto);

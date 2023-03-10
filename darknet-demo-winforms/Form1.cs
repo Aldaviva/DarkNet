@@ -1,6 +1,7 @@
 ﻿#nullable enable
 
 using System;
+using System.Drawing;
 using System.Windows.Forms;
 using Dark.Net;
 
@@ -10,6 +11,14 @@ public partial class Form1: Form {
 
     public Form1() {
         InitializeComponent();
+
+        DarkNet.Instance.EffectiveCurrentProcessThemeIsDarkChanged += (_, isDarkTheme) => RenderTheme(isDarkTheme);
+        RenderTheme(DarkNet.Instance.EffectiveCurrentProcessThemeIsDark);
+    }
+
+    private void RenderTheme(bool isDarkTheme) {
+        BackColor = isDarkTheme ? Color.FromArgb(19, 19, 19) : Color.White;
+        ForeColor = isDarkTheme ? Color.White : Color.Black;
     }
 
     private void onDarkModeCheckboxChanged(object sender, EventArgs e) {

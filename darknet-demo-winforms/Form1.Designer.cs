@@ -43,8 +43,8 @@ namespace darknet_demo_winforms
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(768, 13);
             this.label1.TabIndex = 0;
-            this.label1.Text = "Try changing your color mode in Windows Settings to see this app\'s title bar and " +
-    "menu react.";
+            this.label1.Text = "Try changing your color mode in Windows Settings to see this app\'s title bar, men" +
+    "u, and client area react.";
             this.label1.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // darkModeCheckbox
