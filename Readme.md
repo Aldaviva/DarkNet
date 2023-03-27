@@ -190,6 +190,9 @@ See [`darknet-demo-wpf`](https://github.com/Aldaviva/DarkNet/tree/master/darknet
 - [`App.xaml`](https://github.com/Aldaviva/DarkNet/blob/master/darknet-demo-wpf/App.xaml) can optionally point to either the dark or light skin in its merged resource dictionary, which will be replaced at runtime by `SkinManager`. The value you set here is useful for previewing during Visual Studio XAML authoring. This merged dictionary can additionally refer to your other unrelated resource dictionaries and resources, which won't be touched by `SkinManager`.
 - [`MainWindow.xaml`](https://github.com/Aldaviva/DarkNet/blob/master/darknet-demo-wpf/MainWindow.xaml) binds the `Window` `Style` property to a `DynamicResource` pointing to the `windowStyle` resource, which is defined twice in both the light and dark skin resource dictionaries. You need to explicitly bind `Window` styles like this instead of using a `TargetType` on your `Style` because `TargetType` does not apply to superclasses, and the concrete class here is `darknet_demo_wpf.MainWindow` instead of `System.Windows.Window`.
 
+Additional examples of WPF skins for light and dark themes:
+- [Aldaviva/Trainers](https://github.com/Aldaviva/Trainers/tree/master/TrainerCommon/App/Skins)
+- [Aldaviva/RemoteDesktopServicesCertificateSelector](https://github.com/Aldaviva/RemoteDesktopServicesCertificateSelector/tree/master/RemoteDesktopServicesCertificateSelector/Views/Skins)
 
 #### Complete example
 
@@ -307,7 +310,7 @@ Requires [.NET Framework 4.8](https://dotnet.microsoft.com/en-us/download/dotnet
 
 ## Limitations
 - This library only changes the theme of the title bar/window chrome/non-client area, as well as the system context menu (the menu that appears when you right click on the title bar, or left click on the title bar icon, or hit `Alt`+`Space`). It does not change the theme of the client area of your window. It is up to you to make that look different when dark mode is enabled. This is difficult with Windows Forms, [particularly in .NET Core](https://github.com/gitextensions/gitextensions/issues/9191).
-    - For a simple example of automatically switching WPF resource dictionaries to render dark and light mode skins, see [Aldaviva/Trainers](https://github.com/Aldaviva/Trainers/blob/master/TrainerCommon/App/CommonApp.cs).
+    - For simple examples of automatically switching WPF resource dictionaries using [`SkinManager`](#client-area) and writing dark and light mode skins, see [Aldaviva/Trainers](https://github.com/Aldaviva/Trainers/blob/master/TrainerCommon/App/CommonApp.cs) and [Aldaviva/RemoteDesktopServicesCertificateSelector](https://github.com/Aldaviva/RemoteDesktopServicesCertificateSelector/blob/master/RemoteDesktopServicesCertificateSelector/App.xaml.cs).
 - This library currently does not help you persist a user's choice for the mode they want your application to use across separate process executions. You can expose an option and persist that yourself, then pass the desired `Theme` value to the methods in this library.
 
 ## Acknowledgements
