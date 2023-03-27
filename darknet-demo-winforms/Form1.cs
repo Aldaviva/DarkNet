@@ -22,12 +22,14 @@ public partial class Form1: Form {
     }
 
     private void onDarkModeCheckboxChanged(object sender, EventArgs e) {
-        DarkNet.Instance.SetCurrentProcessTheme(darkModeCheckbox.CheckState switch {
+        Theme theme = darkModeCheckbox.CheckState switch {
             CheckState.Unchecked     => Theme.Light,
             CheckState.Checked       => Theme.Dark,
             CheckState.Indeterminate => Theme.Auto,
             _                        => Theme.Auto
-        });
+        };
+        DarkNet.Instance.SetCurrentProcessTheme(theme);
+        Console.WriteLine($"Process theme is {theme}");
     }
 
 }

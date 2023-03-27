@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Windows;
 using Dark.Net;
-using Dark.Net.WPF;
+using Dark.Net.Wpf;
 
 namespace darknet_demo_wpf;
 

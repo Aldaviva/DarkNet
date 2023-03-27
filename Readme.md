@@ -21,6 +21,7 @@ Enable native Windows dark mode for your WPF and Windows Forms title bars.
         - [On application startup](#on-application-startup)
         - [Before showing a new window](#before-showing-a-new-window)
         - [After showing a window](#after-showing-a-window)
+        - [Client area](#client-area)
         - [Complete example](#complete-example)
     - [Windows Forms](#windows-forms)
         - [On application startup](#on-application-startup-1)
@@ -160,6 +161,35 @@ You must perform this step for **every** window you show in your application, no
 After calling `SetWindowThemeWpf` for the first time and showing a new window, you may optionally make additional calls to `SetCurrentProcessTheme` or `SetWindowThemeWpf` multiple times to change the theme later. This is useful if you let users choose a theme in your app's settings.
 
 Try the [demo apps](#demos) to see this behavior in action.
+
+#### Client area
+
+DarkNet does not give controls in the client area of your windows a dark skin. It only changes the theme of the title bar and system context menu. It is up to you to make the inside of your windows dark.
+
+However, this library can help you switch your WPF application resource dictionaries to apply different styles when the process title bar theme changes. This requires you to create two resource dictionaries, one for the light theme and one for dark.
+
+To tell DarkNet to switch between the resource dictionaries when the process theme changes, register them with [**`SkinManager`**](https://github.com/Aldaviva/DarkNet/blob/master/DarkNet/Wpf/SkinManager.cs):
+
+```cs
+new Dark.Net.Wpf.SkinManager().RegisterSkins(
+    lightThemeResources: new Uri("Skins/Skin.Light.xaml", UriKind.Relative),
+    darkThemeResources:  new Uri("Skins/Skin.Dark.xaml", UriKind.Relative));
+```
+
+When you register the skin URIs, `SkinManager` will change the `Source` property of the merged resource dictionary to point to the correct skin, once when you call it and again whenever the current process theme changes in the future.
+
+In your skin resource dictionaries, you can define resources, such as a `Color`, `Brush`, or `BitmapImage`, that are referred to using a `DynamicResource` binding somewhere in your window. You can also create a `Style` that applies to a `TargetType`, or that you refer to with a `DynamicResource`. These can apply a `ControlTemplate` to change the default appearance of controls like `CheckBox`, which unfortunately has property triggers that must be completely replaced in order to be restyled, instead of using template bindings or attached properties. Try to use `DynamicResource` instead of `StaticResource` so that the style can update when the skin is changed.
+
+To get started overriding a control's default styles and control template, right-click the control in the Visual Studio XAML Designer, select Edit Template › Edit a Copy…, then define the resource in your skin's resource dictionary. 
+
+See [`darknet-demo-wpf`](https://github.com/Aldaviva/DarkNet/tree/master/darknet-demo-wpf) for an example.
+- [`Skins/`](https://github.com/Aldaviva/DarkNet/tree/master/darknet-demo-wpf/Skins) contains the resource dictionaries for [light](https://github.com/Aldaviva/DarkNet/blob/master/darknet-demo-wpf/Skins/Skin.Light.xaml) and [dark](https://github.com/Aldaviva/DarkNet/blob/master/darknet-demo-wpf/Skins/Skin.Dark.xaml) skins, as well as [common](https://github.com/Aldaviva/DarkNet/blob/master/darknet-demo-wpf/Skins/Skin.Common.xaml) resources that are shared by both skins.
+    - The dark skin in `Skin.Dark.xaml` overrides the styles and control template for the `CheckBox` to get rid of the light background, including when the mouse pointer is hovering over or clicking on it.
+- [`App.xaml.cs`](https://github.com/Aldaviva/DarkNet/blob/master/darknet-demo-wpf/App.xaml.cs) registers the skins with `SkinManager`.
+    - When referring to XAML files in other assemblies, or when processing assemblies with tools like [`ILRepack`](https://github.com/ravibpatel/ILRepack.Lib.MSBuild.Task), the skin URIs can change. You may need to [try multiple fallback URIs](https://github.com/Aldaviva/RemoteDesktopServicesCertificateSelector/blob/4beb7893ac99ef0a3bc512feb93398ea8993c9a6/RemoteDesktopServicesCertificateSelector/App.xaml.cs#L44-L59) depending on whether the app was built in a Debug or Release configuration.
+- [`App.xaml`](https://github.com/Aldaviva/DarkNet/blob/master/darknet-demo-wpf/App.xaml) can optionally point to either the dark or light skin in its merged resource dictionary, which will be replaced at runtime by `SkinManager`. The value you set here is useful for previewing during Visual Studio XAML authoring. This merged dictionary can additionally refer to your other unrelated resource dictionaries and resources, which won't be touched by `SkinManager`.
+- [`MainWindow.xaml`](https://github.com/Aldaviva/DarkNet/blob/master/darknet-demo-wpf/MainWindow.xaml) binds the `Window` `Style` property to a `DynamicResource` pointing to the `windowStyle` resource, which is defined twice in both the light and dark skin resource dictionaries. You need to explicitly bind `Window` styles like this instead of using a `TargetType` on your `Style` because `TargetType` does not apply to superclasses, and the concrete class here is `darknet_demo_wpf.MainWindow` instead of `System.Windows.Window`.
+
 
 #### Complete example
 

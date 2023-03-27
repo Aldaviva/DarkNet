@@ -3,7 +3,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
 
-namespace Dark.Net.WPF;
+namespace Dark.Net.Wpf;
 
 /// <summary>
 /// Automatically swap the current WPF <see cref="Application"/> between a light and dark <see cref="ResourceDictionary"/> when the effective process theme changes between <see cref="Theme.Light"/>
