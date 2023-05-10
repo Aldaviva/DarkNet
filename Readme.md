@@ -92,7 +92,7 @@ This library uses the `Theme` enum to differentiate **`Dark`** mode from **`Ligh
 
 There is also an **`Auto`** theme value that allows the theme to be inherited from a higher level, falling back from the **window** to the **process** to the user account **default app theme**:
 
-1. When a **window's** theme is `Dark` or `Light`, it uses that theme directly, set by`SetWindowTheme*`.
+1. When a **window's** theme is `Dark` or `Light`, it uses that theme directly, set by `SetWindowTheme*`.
 2. When a **window's** theme is `Auto`, it inherits from the **process's** theme set by `SetCurrentProcessTheme`.
 3. When a **window and its process's** themes are both `Auto`, they inherit from the local user's operating system **default app theme** preferences (Settings › Personalization › Colors › Choose your default app mode).
 
@@ -280,7 +280,7 @@ If you want to change the theme of a window in your application that was not cre
 
 ### Effective application theme
 
-If you want to know which theme was rendered as a result of setting your app's theme to `Auto` using `SetCurrentProcessTheme`, you can call **`EffectiveCurrentProcessThemeIsDark`**. This will return whether the actual title bar theme is dark or light, and it reflects the theme you set, the user's OS color settings, and the high contrast setting. Changes are emitted from the **`EffectiveCurrentProcessThemeIsDarkChanged`** event.
+If you want to know which theme was rendered as a result of setting your app's theme to `Auto` using `SetCurrentProcessTheme`, you can get **`EffectiveCurrentProcessThemeIsDark`**. This will return whether the actual title bar theme is dark or light, and it reflects the theme you set, the user's OS color settings, and the high contrast setting. Changes are emitted from the **`EffectiveCurrentProcessThemeIsDarkChanged`** event.
 
 This can be useful if you want to set the theme to `Auto` and then skin your app's client area based on the Windows default app mode setting. It also helps you keep a single, authoritative copy of this state instead of having to maintain a second one and keep them in sync.
 
