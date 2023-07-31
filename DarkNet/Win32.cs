@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Drawing;
 using System.Runtime.InteropServices;
 
 namespace Dark.Net;
@@ -214,6 +215,9 @@ internal enum AppMode {
 
 }
 
+/// <summary>
+/// https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/ne-dwmapi-dwmwindowattribute
+/// </summary>
 internal enum DwmWindowAttribute {
 
     DwmwaNcrenderingEnabled,
@@ -231,8 +235,16 @@ internal enum DwmWindowAttribute {
     DwmwaCloak,
     DwmwaCloaked,
     DwmwaFreezeRepresentation,
+    DwmwaPassiveUpdateMode,
+    DwmwaUseHostBackdropBrush,
     DwmwaUseImmersiveDarkModeBefore20H1 = 19,
-    DwmwaUseImmersiveDarkMode           = 20
+    DwmwaUseImmersiveDarkMode           = 20,
+    DwmwaWindowCornerPreference         = 33,
+    DwmwaBorderColor,  //ColorRef
+    DwmwaCaptionColor, //ColorRef
+    DwmwaTextColor,    //ColorRef
+    DwmwaVisibleFrameBorderThickness,
+    DwmwaSystemBackdropType
 
 }
 
@@ -280,6 +292,29 @@ internal readonly struct WindowCompositionAttributeData {
         this.attribute = attribute;
         this.data      = data;
         this.size      = size;
+    }
+
+}
+
+/// <summary>
+/// https://learn.microsoft.com/en-us/windows/win32/gdi/colorref
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+internal readonly struct ColorRef {
+
+    public readonly byte red;
+    public readonly byte green;
+    public readonly byte blue;
+    public readonly byte alpha = 0;
+
+    public ColorRef(Color color, bool includeAlpha) {
+        red   = color.R;
+        green = color.G;
+        blue  = color.B;
+
+        if (includeAlpha) {
+            alpha = color.A;
+        }
     }
 
 }

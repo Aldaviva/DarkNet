@@ -31,6 +31,7 @@ Enable native Windows dark mode for your WPF and Windows Forms title bars.
     - [HWND](#hwnd)
     - [Effective application theme](#effective-application-theme)
     - [Taskbar theme](#taskbar-theme)
+    - [Custom colors](#custom-colors)
 - [Demos](#demos)
     - [WPF](#wpf-1)
     - [Windows Forms](#windows-forms-1)
@@ -78,9 +79,9 @@ The top-level interface of this library is **`Dark.Net.IDarkNet`**, which is imp
     
     If you don't call this method, any window on which you call `SetWindowTheme*(myWindow, Theme.Auto)` will inherit its theme from the operating system's default app theme, skipping this app-level default.
 2. Next, you must call one of the **`SetWindowTheme*`** methods to actually apply a theme to each window. There are three methods to choose from, depending on what kind of window you have:
-    - **WPF:** `SetWindowThemeWpf(Window, Theme)`
-    - **Forms:** `SetWindowThemeForms(Form, Theme)`
-    - **HWND:** `SetWindowThemeRaw(IntPtr, Theme)`
+    - **WPF:** `SetWindowThemeWpf(Window, Theme, ThemeOptions?)`
+    - **Forms:** `SetWindowThemeForms(Form, Theme, ThemeOptions?)`
+    - **HWND:** `SetWindowThemeRaw(IntPtr, Theme, ThemeOptions?)`
 
     If you don't call one of these methods on a given window, that window will always use the light theme, even if you called `SetCurrentProcessTheme` and set the OS default app mode to dark.
 
@@ -166,9 +167,11 @@ Try the [demo apps](#demos) to see this behavior in action.
 
 DarkNet does not give controls in the client area of your windows a dark skin. It only changes the theme of the title bar and system context menu. It is up to you to make the inside of your windows dark.
 
-However, this library can help you switch your WPF application resource dictionaries to apply different styles when the process title bar theme changes. This requires you to create two resource dictionary XAML files, one for the light theme and one for dark.
+However, this library can help you switch your WPF application resource dictionaries to apply different styles when the process title bar theme changes.
 
-To tell DarkNet to switch between the resource dictionaries when the process theme changes, register them with [**`SkinManager`**](https://github.com/Aldaviva/DarkNet/blob/master/DarkNet/Wpf/SkinManager.cs):
+This limited class currently only handles process theme changes, and does not handle individual windows using different themes in the same process. For more fine-grained skin management, see [pull request #8](https://github.com/Aldaviva/DarkNet/pull/8).
+
+This requires you to create two resource dictionary XAML files, one for the light theme and one for dark. To tell DarkNet to switch between the resource dictionaries when the process theme changes, register them with [**`SkinManager`**](https://github.com/Aldaviva/DarkNet/blob/master/DarkNet/Wpf/SkinManager.cs):
 
 ```cs
 new Dark.Net.Wpf.SkinManager().RegisterSkins(
@@ -289,6 +292,32 @@ This can be useful if you want to set the theme to `Auto` and then skin your app
 Windows introduced a preference to choose a dark or light taskbar in Windows 10 version 1903. This is controlled by Settings › Personalization › Colors › Choose your default Windows mode.
 
 DarkNet exposes the value of this preference with the **`UserTaskbarThemeIsDark`** property, as well as the change event **`UserTaskbarThemeIsDarkChanged`**. You can use these to render a tray icon in the notification area that matches the taskbar's theme, and re-render it when the user preference changes.
+
+### Custom colors
+
+Windows 11 introduced the ability to override colors in the non-client area of individual windows. You can change the title bar's text color and background color, as well as the window's border color. You cannot change the color of the minimize, maximize/restore, or close buttons.
+
+To specify custom colors for a WPF, Forms, or HWND window, pass the optional parameter `ThemeOptions? options` to one of the `SetWindowTheme*()` methods. For example, this invocation gives a WPF window a blue title bar theme.
+
+```cs
+DarkNet.Instance.SetWindowThemeWpf(this, Theme.Dark, new ThemeOptions {
+    TitleBarTextColor       = Color.MidnightBlue,
+    TitleBarBackgroundColor = Color.PowderBlue,
+    WindowBorderColor       = Color.DarkBlue
+});
+```
+
+![custom colors](.github/images/demo-wpf-customcolors.png)
+
+You can pass any or all of the three properties `TitleBarTextColor`, `TitleBarBackgroundColor`, and `WindowBorderColor`. Any properties that you omit or leave `null` will use the standard OS light and dark colors from the `Theme` you passed. You can pass a custom RGB value using `Color.FromArgb(red: 255, green: 127, blue: 0)`. Alpha values are ignored.
+
+To apply the same custom colors to all of the windows in your process, you may instead pass the `ThemeOptions` to `SetCurrentProcessTheme(Theme, ThemeOptions?)`, then omit the `options` parameter when you call `SetWindowTheme*(window, theme, options)`. Alternatively, you may set some of the properties at the process level and set others at the window level. You may also set a property at both the process and window level, and the window level value will take precedence.
+
+To remove the window border entirely, set `WindowBorderColor` to `ThemeOptions.NoWindowBorder`.
+
+If you previously set any of these properties to a custom color, and want to revert it to the standard OS color for your chosen `Theme`, set the property to `ThemeOptions.DefaultColor`.
+
+On Windows 10 and earlier versions, these options will have no effect.
 
 ## Demos
 

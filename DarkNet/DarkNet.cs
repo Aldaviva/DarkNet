@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Security;
@@ -34,12 +35,24 @@ public class DarkNet: IDarkNet {
     /// </summary>
     public static IDarkNet Instance => LazyInstance.Value;
 
+    /// <summary>
+    /// Mapping from a window handle to the most recently set <see cref="Theme"/> for that window, used to correctly reapply themes when a parent theme (process or OS) changes.
+    /// </summary>
     protected readonly ConcurrentDictionary<IntPtr, Theme> PreferredWindowModes = new();
 
-    private   bool?  _userDefaultAppThemeIsDark;
-    private   bool?  _userTaskbarThemeIsDark;
+    /// <summary>
+    /// The most recently set theme for this process, used to correctly reapply themes to this process's windows when the user changes their OS settings.
+    /// </summary>
     protected Theme? PreferredAppTheme;
-    protected bool?  EffectiveProcessThemeIsDark;
+
+    /// <summary>
+    /// Most recent value for whether the process's theme is dark, after taking into account high contrast mode. Null if never set. Used to back the <see cref="EffectiveCurrentProcessThemeIsDark"/> property and fire <see cref="EffectiveCurrentProcessThemeIsDarkChanged"/> events.
+    /// </summary>
+    protected bool? EffectiveProcessThemeIsDark;
+
+    private bool?         _userDefaultAppThemeIsDark;
+    private bool?         _userTaskbarThemeIsDark;
+    private ThemeOptions? _processThemeOptions;
 
     private volatile int _processThemeChanged; // int instead of bool to support Interlocked atomic operations
 
@@ -63,7 +76,7 @@ public class DarkNet: IDarkNet {
     }
 
     /// <inheritdoc />
-    public virtual void SetCurrentProcessTheme(Theme theme) {
+    public virtual void SetCurrentProcessTheme(Theme theme, ThemeOptions? options = null) {
         _processThemeChanged = 1;
 
         try {
@@ -83,7 +96,8 @@ public class DarkNet: IDarkNet {
             }
         }
 
-        PreferredAppTheme = theme;
+        PreferredAppTheme    = theme;
+        _processThemeOptions = options;
 
         RefreshTitleBarThemeColor();
 
@@ -99,7 +113,7 @@ public class DarkNet: IDarkNet {
 
     /// <inheritdoc />
     // Not overloading one method to cover both WPF and Forms so that consumers don't have to add references to both PresentationFramework and System.Windows.Forms just to use one overloaded variant
-    public virtual void SetWindowThemeWpf(Window window, Theme theme) {
+    public virtual void SetWindowThemeWpf(Window window, Theme theme, ThemeOptions? options = null) {
         bool isWindowInitialized = PresentationSource.FromVisual(window) != null;
         if (!isWindowInitialized) {
             ImplicitlySetProcessThemeIfFirstCall(theme);
@@ -107,13 +121,13 @@ public class DarkNet: IDarkNet {
 
             void OnSourceInitialized(object? _, EventArgs eventArgs) {
                 window.SourceInitialized -= OnSourceInitialized;
-                SetWindowThemeWpf(window, theme);
+                SetWindowThemeWpf(window, theme, options);
             }
         } else {
             IntPtr windowHandle = new WindowInteropHelper(window).Handle;
 
             try {
-                SetModeForWindow(windowHandle, theme);
+                SetModeForWindow(windowHandle, theme, options);
             } catch (DarkNetException.LifecycleException) {
                 throw new InvalidOperationException($"Called {nameof(SetWindowThemeWpf)}() too late, call it in OnSourceInitialized or the Window subclass's constructor");
             }
@@ -128,9 +142,9 @@ public class DarkNet: IDarkNet {
     }
 
     /// <inheritdoc />
-    public virtual void SetWindowThemeForms(Form window, Theme theme) {
+    public virtual void SetWindowThemeForms(Form window, Theme theme, ThemeOptions? options = null) {
         try {
-            SetModeForWindow(window.Handle, theme);
+            SetModeForWindow(window.Handle, theme, options);
         } catch (DarkNetException.LifecycleException) {
             throw new InvalidOperationException($"Called {nameof(SetWindowThemeForms)}() too late, call it before Form.Show() or Application.Run(), and after " +
                 $"{nameof(IDarkNet)}.{nameof(SetCurrentProcessTheme)}()");
@@ -145,9 +159,9 @@ public class DarkNet: IDarkNet {
     }
 
     /// <inheritdoc />
-    public virtual void SetWindowThemeRaw(IntPtr windowHandle, Theme theme) {
+    public virtual void SetWindowThemeRaw(IntPtr windowHandle, Theme theme, ThemeOptions? options = null) {
         try {
-            SetModeForWindow(windowHandle, theme);
+            SetModeForWindow(windowHandle, theme, options);
         } catch (DarkNetException.LifecycleException) {
             throw new InvalidOperationException($"Called {nameof(SetWindowThemeRaw)}() too late, call it before the window is visible.");
         }
@@ -165,7 +179,7 @@ public class DarkNet: IDarkNet {
     ///     <para>if GetWindowInfo().style.WS_VISIBLE == true then it was called too late</para>
     /// </summary>
     /// <exception cref="DarkNetException.LifecycleException">if it is called too late</exception>
-    protected virtual void SetModeForWindow(IntPtr windowHandle, Theme windowTheme) {
+    protected virtual void SetModeForWindow(IntPtr windowHandle, Theme windowTheme, ThemeOptions? options = null) {
         ImplicitlySetProcessThemeIfFirstCall(windowTheme);
 
         bool isFirstRunForWindow = true;
@@ -179,9 +193,13 @@ public class DarkNet: IDarkNet {
         }
 
         Win32.AllowDarkModeForWindow(windowHandle, windowTheme != Theme.Light);
-        RefreshTitleBarThemeColor(windowHandle);
+        RefreshTitleBarThemeColor(windowHandle, options);
     }
 
+    /// <summary>
+    /// Fired when a WPF or Forms window is about to close, so that we can release the entry in the <see cref="PreferredWindowModes"/> map and free its memory.
+    /// </summary>
+    /// <param name="windowHandle"></param>
     protected void OnWindowClosing(IntPtr windowHandle) {
         PreferredWindowModes.TryRemove(windowHandle, out _);
     }
@@ -198,7 +216,12 @@ public class DarkNet: IDarkNet {
         }
     }
 
-    protected virtual void RefreshTitleBarThemeColor(IntPtr windowHandle) {
+    /// <summary>
+    /// Apply all of the theme fallback/override logic and call the OS methods to apply the window theme. Handles the window theme, app theme, OS theme, high contrast, different Windows versions, Windows 11 colors, repainting visible windows, and updating context menus.
+    /// </summary>
+    /// <param name="windowHandle">A pointer to the window to update</param>
+    /// <param name="options">Windows 11 DWM color overrides</param>
+    protected virtual void RefreshTitleBarThemeColor(IntPtr windowHandle, ThemeOptions? options = null) {
         if (!PreferredWindowModes.TryGetValue(windowHandle, out Theme windowTheme)) {
             windowTheme = Theme.Auto;
         }
@@ -244,6 +267,18 @@ public class DarkNet: IDarkNet {
             Marshal.FreeHGlobal(attributeValueBuffer);
         }
 
+        if ((options?.TitleBarBackgroundColor ?? _processThemeOptions?.TitleBarBackgroundColor) is { } titleBarBackgroundColor) {
+            SetDwmWindowColor(windowHandle, DwmWindowAttribute.DwmwaCaptionColor, titleBarBackgroundColor);
+        }
+
+        if ((options?.TitleBarTextColor ?? _processThemeOptions?.TitleBarTextColor) is { } titleBarTextColor) {
+            SetDwmWindowColor(windowHandle, DwmWindowAttribute.DwmwaTextColor, titleBarTextColor);
+        }
+
+        if ((options?.WindowBorderColor ?? _processThemeOptions?.WindowBorderColor) is { } windowBorderColor) {
+            SetDwmWindowColor(windowHandle, DwmWindowAttribute.DwmwaBorderColor, windowBorderColor);
+        }
+
         /*
          * Needed for subsequent (after the window has already been shown) theme changes, otherwise the title bar will only update after you later hide, blur, or resize the window.
          * Not needed when changing the theme for the first time, before the window has ever been shown.
@@ -259,6 +294,23 @@ public class DarkNet: IDarkNet {
 
         // Needed to make the context menu theme change when you change the app theme after showing a window.
         Win32.FlushMenuThemes();
+    }
+
+    // Windows 11 and later
+    private static int SetDwmWindowColor(IntPtr windowHandle, DwmWindowAttribute attribute, Color color) {
+        int      attributeValueBufferSize = Marshal.SizeOf<ColorRef>();
+        IntPtr   attributeValueBuffer     = Marshal.AllocHGlobal(attributeValueBufferSize);
+        ColorRef colorRef                 = new(color, ThemeOptions.DefaultColor.Equals(color) || (attribute == DwmWindowAttribute.DwmwaBorderColor && ThemeOptions.NoWindowBorder.Equals(color)));
+
+        Marshal.StructureToPtr(colorRef, attributeValueBuffer, false);
+        try {
+            return Win32.DwmSetWindowAttribute(windowHandle, attribute, attributeValueBuffer, attributeValueBufferSize);
+        } catch (Exception e) when (e is not OutOfMemoryException) {
+            Trace.TraceInformation("Failed to set custom title bar color for window: {0}", e.Message);
+            return 1;
+        } finally {
+            Marshal.FreeHGlobal(attributeValueBuffer);
+        }
     }
 
     /// <inheritdoc />

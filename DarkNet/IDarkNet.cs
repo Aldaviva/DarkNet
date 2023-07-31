@@ -29,7 +29,8 @@ public interface IDarkNet: IDisposable {
     ///     <para>This method doesn't actually make your title bars dark. It defines the default theme to use if you set a window's theme to <see cref="Theme.Auto"/> using <see cref="SetWindowThemeWpf" />/<see cref="SetWindowThemeForms"/>.</para>
     /// </summary>
     /// <param name="theme">The theme that windows of your process should use. This theme overrides the user's settings and is overridden by the window theme you set later, unless you set the theme to <see cref="Theme.Auto"/>, in which case it inherits from the user's settings.</param>
-    void SetCurrentProcessTheme(Theme theme);
+    /// <param name="options">Optional extra parameters that can override the colors in the non-client areas for all of this process's windows. May also be specified on a per-window basis with the SetWindowTheme*() methods. Only affects Windows 11 and later.</param>
+    void SetCurrentProcessTheme(Theme theme, ThemeOptions? options = null);
 
     /// <summary>
     ///     <para>Turn on dark mode for a window.</para>
@@ -39,8 +40,9 @@ public interface IDarkNet: IDisposable {
     /// <remarks>The correct time to call this method is when the window has already been constructed, it has an HWND, but it has not yet been shown (i.e. its Win32 window style must not be visible yet). You can call this directly after the call to <c>Window.InitializeComponent</c> in the Window's constructor. Alternatively, a handler for the <see cref="Window.SourceInitialized" /> event will be fired at the correct point in the window lifecycle to call this method.</remarks>
     /// <param name="window">A WPF window which has been constructed and is being SourceInitialized, but has not yet been shown.</param>
     /// <param name="theme">The theme to use for this window. Can be <see cref="Theme.Auto"/> to inherit from the app (defined by the theme passed to <see cref="SetCurrentProcessTheme"/>), or from the user's default app settings if you also set the app to <see cref="Theme.Auto"/> (defined in Settings › Personalization › Colors).</param>
+    /// <param name="options">Optional extra parameters that can override the colors in the non-client area of this window. May also be specified on a per-process basis with <see cref="SetCurrentProcessTheme"/>. Only affects Windows 11 and later.</param>
     /// <exception cref="InvalidOperationException">If this method was called too early (such as right after the Window constructor), or too late (such as after <see cref="Window.Show" /> returns).</exception>
-    void SetWindowThemeWpf(Window window, Theme theme);
+    void SetWindowThemeWpf(Window window, Theme theme, ThemeOptions? options = null);
 
     /// <summary>
     ///     <para>Turn on dark mode for a window.</para>
@@ -50,8 +52,9 @@ public interface IDarkNet: IDisposable {
     /// <remarks>The correct time to call this method is when the window has already been constructed, but it has not yet been shown (i.e. its Win32 window style must not be visible yet). You can call this after the <see cref="Form"/> constructor returns, but before <see cref="Control.Show" />.</remarks>
     /// <param name="window">A Windows Forms window which has been constructed but has not yet been shown.</param>
     /// <param name="theme">The theme to use for this window. Can be <see cref="Theme.Auto"/> to inherit from the app (defined by the theme passed to <see cref="SetCurrentProcessTheme"/>), or from the user's default app settings if you also set the app to <see cref="Theme.Auto"/> (defined in Settings › Personalization › Colors).</param>
+    /// /// <param name="options">Optional extra parameters that can override the colors in the non-client area of this window. May also be specified on a per-process basis with <see cref="SetCurrentProcessTheme"/>. Only affects Windows 11 and later.</param>
     /// <exception cref="InvalidOperationException">If this method was called too late (such as after calling <see cref="Control.Show" /> returns).</exception>
-    void SetWindowThemeForms(Form window, Theme theme);
+    void SetWindowThemeForms(Form window, Theme theme, ThemeOptions? options = null);
 
     /// <summary>
     ///     <para>Turn on dark mode for a window.</para>
@@ -62,8 +65,9 @@ public interface IDarkNet: IDisposable {
     /// <remarks>The correct time to call this method is when the window has already been constructed, but it has not yet been shown (i.e. its Win32 window style must not be visible yet).</remarks>
     /// <param name="windowHandle">A <c>HWND</c> handle to a Win32 window, which has been constructed but has not yet been shown.</param>
     /// <param name="theme">The theme to use for this window. Can be <see cref="Theme.Auto"/> to inherit from the app (defined by the theme passed to <see cref="SetCurrentProcessTheme"/>), or from the user's default app settings if you also set the app to <see cref="Theme.Auto"/> (defined in Settings › Personalization › Colors).</param>
+    /// /// <param name="options">Optional extra parameters that can override the colors in the non-client area of this window. May also be specified on a per-process basis with <see cref="SetCurrentProcessTheme"/>. Only affects Windows 11 and later.</param>
     /// <exception cref="InvalidOperationException">If this method was called too late.</exception>
-    void SetWindowThemeRaw(IntPtr windowHandle, Theme theme);
+    void SetWindowThemeRaw(IntPtr windowHandle, Theme theme, ThemeOptions? options = null);
 
     /// <summary>
     ///     <para>Whether windows which follow the user's default operating system theme, such as Windows Explorer, Command Prompt, and Settings, will use dark mode in their title bars, context menus, and other themed areas. Also known as "app mode" or "default app mode".</para>
