@@ -106,7 +106,7 @@ internal struct Rect {
     }
 
     public int X {
-        get => Left;
+        readonly get => Left;
         set {
             Right -= Left - value;
             Left  =  value;
@@ -114,7 +114,7 @@ internal struct Rect {
     }
 
     public int Y {
-        get => Top;
+        readonly get => Top;
         set {
             Bottom -= Top - value;
             Top    =  value;
@@ -122,12 +122,12 @@ internal struct Rect {
     }
 
     public int Height {
-        get => Bottom - Top;
+        readonly get => Bottom - Top;
         set => Bottom = value + Top;
     }
 
     public int Width {
-        get => Right - Left;
+        readonly get => Right - Left;
         set => Right = value + Left;
     }
 

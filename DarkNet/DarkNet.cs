@@ -192,7 +192,13 @@ public class DarkNet: IDarkNet {
             throw new DarkNetException.LifecycleException("Called too late, call it before the window is visible.");
         }
 
-        Win32.AllowDarkModeForWindow(windowHandle, windowTheme != Theme.Light);
+        try {
+            Win32.AllowDarkModeForWindow(windowHandle, windowTheme != Theme.Light);
+        } catch (EntryPointNotFoundException) {
+            // #9: possibly Wine, do nothing
+            return;
+        }
+
         RefreshTitleBarThemeColor(windowHandle, options);
     }
 
@@ -222,78 +228,82 @@ public class DarkNet: IDarkNet {
     /// <param name="windowHandle">A pointer to the window to update</param>
     /// <param name="options">Windows 11 DWM color overrides</param>
     protected virtual void RefreshTitleBarThemeColor(IntPtr windowHandle, ThemeOptions? options = null) {
-        if (!PreferredWindowModes.TryGetValue(windowHandle, out Theme windowTheme)) {
-            windowTheme = Theme.Auto;
-        }
-
-        Theme appTheme                  = PreferredAppTheme ?? Theme.Auto;
-        bool  userDefaultAppThemeIsDark = UserDefaultAppThemeIsDark;
-        bool  isHighContrast            = IsHighContrast();
-
-        if (appTheme == Theme.Auto) {
-            appTheme = userDefaultAppThemeIsDark ? Theme.Dark : Theme.Light;
-        }
-
-        if (windowTheme == Theme.Auto) {
-            windowTheme = appTheme;
-        }
-
-        if (isHighContrast) {
-            windowTheme = Theme.Light;
-            appTheme    = Theme.Light;
-        } else if (!Win32.IsDarkModeAllowedForWindow(windowHandle)) {
-            windowTheme = Theme.Light;
-        }
-
-        EffectiveCurrentProcessThemeIsDark = appTheme == Theme.Dark;
-
-        bool   isDarkTheme              = windowTheme == Theme.Dark;
-        int    attributeValueBufferSize = Marshal.SizeOf(typeof(bool));
-        IntPtr attributeValueBuffer     = Marshal.AllocHGlobal(attributeValueBufferSize);
-        Marshal.WriteInt32(attributeValueBuffer, Convert.ToInt32(isDarkTheme));
-
         try {
-            // Windows 10 1903 and later
-            WindowCompositionAttributeData windowCompositionAttributeData = new(WindowCompositionAttribute.WcaUsedarkmodecolors, attributeValueBuffer, attributeValueBufferSize);
-            Win32.SetWindowCompositionAttribute(windowHandle, ref windowCompositionAttributeData);
-        } catch (Exception e1) when (e1 is not OutOfMemoryException) {
-            try {
-                // Windows 10 1809 only
-                Win32.SetProp(windowHandle, "UseImmersiveDarkModeColors", new IntPtr(Convert.ToInt64(isDarkTheme)));
-            } catch (Exception e2) when (e2 is not OutOfMemoryException) {
-                Trace.TraceWarning("Failed to set dark mode for window: {0}", e1.Message);
+            if (!PreferredWindowModes.TryGetValue(windowHandle, out Theme windowTheme)) {
+                windowTheme = Theme.Auto;
             }
-        } finally {
-            Marshal.FreeHGlobal(attributeValueBuffer);
+
+            Theme appTheme                  = PreferredAppTheme ?? Theme.Auto;
+            bool  userDefaultAppThemeIsDark = UserDefaultAppThemeIsDark;
+            bool  isHighContrast            = IsHighContrast();
+
+            if (appTheme == Theme.Auto) {
+                appTheme = userDefaultAppThemeIsDark ? Theme.Dark : Theme.Light;
+            }
+
+            if (windowTheme == Theme.Auto) {
+                windowTheme = appTheme;
+            }
+
+            if (isHighContrast) {
+                windowTheme = Theme.Light;
+                appTheme    = Theme.Light;
+            } else if (!Win32.IsDarkModeAllowedForWindow(windowHandle)) {
+                windowTheme = Theme.Light;
+            }
+
+            EffectiveCurrentProcessThemeIsDark = appTheme == Theme.Dark;
+
+            bool   isDarkTheme              = windowTheme == Theme.Dark;
+            int    attributeValueBufferSize = Marshal.SizeOf(typeof(bool));
+            IntPtr attributeValueBuffer     = Marshal.AllocHGlobal(attributeValueBufferSize);
+            Marshal.WriteInt32(attributeValueBuffer, Convert.ToInt32(isDarkTheme));
+
+            try {
+                // Windows 10 1903 and later
+                WindowCompositionAttributeData windowCompositionAttributeData = new(WindowCompositionAttribute.WcaUsedarkmodecolors, attributeValueBuffer, attributeValueBufferSize);
+                Win32.SetWindowCompositionAttribute(windowHandle, ref windowCompositionAttributeData);
+            } catch (Exception e1) when (e1 is not OutOfMemoryException) {
+                try {
+                    // Windows 10 1809 only
+                    Win32.SetProp(windowHandle, "UseImmersiveDarkModeColors", new IntPtr(Convert.ToInt64(isDarkTheme)));
+                } catch (Exception e2) when (e2 is not OutOfMemoryException) {
+                    Trace.TraceWarning("Failed to set dark mode for window: {0}", e1.Message);
+                }
+            } finally {
+                Marshal.FreeHGlobal(attributeValueBuffer);
+            }
+
+            if ((options?.TitleBarBackgroundColor ?? _processThemeOptions?.TitleBarBackgroundColor) is { } titleBarBackgroundColor) {
+                SetDwmWindowColor(windowHandle, DwmWindowAttribute.DwmwaCaptionColor, titleBarBackgroundColor);
+            }
+
+            if ((options?.TitleBarTextColor ?? _processThemeOptions?.TitleBarTextColor) is { } titleBarTextColor) {
+                SetDwmWindowColor(windowHandle, DwmWindowAttribute.DwmwaTextColor, titleBarTextColor);
+            }
+
+            if ((options?.WindowBorderColor ?? _processThemeOptions?.WindowBorderColor) is { } windowBorderColor) {
+                SetDwmWindowColor(windowHandle, DwmWindowAttribute.DwmwaBorderColor, windowBorderColor);
+            }
+
+            /*
+             * Needed for subsequent (after the window has already been shown) theme changes, otherwise the title bar will only update after you later hide, blur, or resize the window.
+             * Not needed when changing the theme for the first time, before the window has ever been shown.
+             * Windows 11 does not need this.
+             * Windows 10 needs this (1809, 22H2, and likely every other version).
+             * Neither RedrawWindow() nor UpdateWindow() fix this.
+             * https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-ncactivate
+             */
+            const uint activateNonClientArea = 0x86;
+            bool       isWindowActive        = windowHandle == Win32.GetForegroundWindow();
+            Win32.SendMessage(windowHandle, activateNonClientArea, new IntPtr(isWindowActive ? 0 : 1), IntPtr.Zero);
+            Win32.SendMessage(windowHandle, activateNonClientArea, new IntPtr(isWindowActive ? 1 : 0), IntPtr.Zero);
+
+            // Needed to make the context menu theme change when you change the app theme after showing a window.
+            Win32.FlushMenuThemes();
+        } catch (EntryPointNotFoundException) {
+            // #9: possibly Wine, do nothing
         }
-
-        if ((options?.TitleBarBackgroundColor ?? _processThemeOptions?.TitleBarBackgroundColor) is { } titleBarBackgroundColor) {
-            SetDwmWindowColor(windowHandle, DwmWindowAttribute.DwmwaCaptionColor, titleBarBackgroundColor);
-        }
-
-        if ((options?.TitleBarTextColor ?? _processThemeOptions?.TitleBarTextColor) is { } titleBarTextColor) {
-            SetDwmWindowColor(windowHandle, DwmWindowAttribute.DwmwaTextColor, titleBarTextColor);
-        }
-
-        if ((options?.WindowBorderColor ?? _processThemeOptions?.WindowBorderColor) is { } windowBorderColor) {
-            SetDwmWindowColor(windowHandle, DwmWindowAttribute.DwmwaBorderColor, windowBorderColor);
-        }
-
-        /*
-         * Needed for subsequent (after the window has already been shown) theme changes, otherwise the title bar will only update after you later hide, blur, or resize the window.
-         * Not needed when changing the theme for the first time, before the window has ever been shown.
-         * Windows 11 does not need this.
-         * Windows 10 needs this (1809, 22H2, and likely every other version).
-         * Neither RedrawWindow() nor UpdateWindow() fix this.
-         * https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-ncactivate
-         */
-        const uint activateNonClientArea = 0x86;
-        bool       isWindowActive        = windowHandle == Win32.GetForegroundWindow();
-        Win32.SendMessage(windowHandle, activateNonClientArea, new IntPtr(isWindowActive ? 0 : 1), IntPtr.Zero);
-        Win32.SendMessage(windowHandle, activateNonClientArea, new IntPtr(isWindowActive ? 1 : 0), IntPtr.Zero);
-
-        // Needed to make the context menu theme change when you change the app theme after showing a window.
-        Win32.FlushMenuThemes();
     }
 
     // Windows 11 and later

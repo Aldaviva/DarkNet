@@ -17,7 +17,7 @@
         <Description>Enable native Windows dark mode for your WPF and Windows Forms title bars.</Description>
         <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
         <PackageProjectUrl>https://github.com/Aldaviva/DarkNet</PackageProjectUrl>
-        <PackageTags>dark dark-mode darkmode forms winforms wpf</PackageTags>
+        <PackageTags>dark dark-mode darkmode forms winforms wpf theme skin</PackageTags>
         <RepositoryType>git</RepositoryType>
         <RepositoryUrl>https://github.com/Aldaviva/DarkNet.git</RepositoryUrl>
         <IncludeSource>true</IncludeSource>
@@ -34,11 +34,11 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <None Remove="ExceptionAdjustments.txt" />
+        <None Remove="ExceptionAdjustments.txt" />
     </ItemGroup>
 
     <ItemGroup>
-      <AdditionalFiles Include="ExceptionAdjustments.txt" />
+        <AdditionalFiles Include="ExceptionAdjustments.txt" />
     </ItemGroup>
 
     <ItemGroup>

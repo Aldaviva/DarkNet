@@ -295,7 +295,7 @@ DarkNet exposes the value of this preference with the **`UserTaskbarThemeIsDark`
 
 ### Custom colors
 
-Windows 11 introduced the ability to override colors in the non-client area of individual windows. You can change the title bar's text color and background color, as well as the window's border color. You cannot change the color of the minimize, maximize/restore, or close buttons.
+Windows 11 introduced the ability to override colors in the non-client area of individual windows. You can change the title bar's text color and background color, as well as the window's border color.
 
 To specify custom colors for a WPF, Forms, or HWND window, pass the optional parameter `ThemeOptions? options` to one of the `SetWindowTheme*()` methods. For example, this invocation gives a WPF window a blue title bar theme.
 
@@ -310,6 +310,8 @@ DarkNet.Instance.SetWindowThemeWpf(this, Theme.Dark, new ThemeOptions {
 ![custom colors](.github/images/demo-wpf-customcolors.png)
 
 You can pass any or all of the three properties `TitleBarTextColor`, `TitleBarBackgroundColor`, and `WindowBorderColor`. Any properties that you omit or leave `null` will use the standard OS light and dark colors from the `Theme` you passed. You can pass a custom RGB value using `Color.FromArgb(red: 255, green: 127, blue: 0)`. Alpha values are ignored.
+
+By default, Windows will automatically change the color of the title bar text and minimize, maximize/restore, and close button icons to light or dark in order to provide maximal contrast with `TitleBarBackgroundColor`. If you set `TitleBarTextColor`, Windows will use it, and will only change the button icon color automatically.
 
 To apply the same custom colors to all of the windows in your process, you may instead pass the `ThemeOptions` to `SetCurrentProcessTheme(Theme, ThemeOptions?)`, then omit the `options` parameter when you call `SetWindowTheme*(window, theme, options)`. Alternatively, you may set some of the properties at the process level and set others at the window level. You may also set a property at both the process and window level, and the window level value will take precedence.
 
