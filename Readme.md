@@ -307,11 +307,11 @@ DarkNet.Instance.SetWindowThemeWpf(this, Theme.Dark, new ThemeOptions {
 });
 ```
 
-![custom colors](.github/images/demo-wpf-customcolors.png)
+![custom colors](https://raw.githubusercontent.com/Aldaviva/DarkNet/master/.github/images/demo-wpf-customcolors.png)
 
-You can pass any or all of the three properties `TitleBarTextColor`, `TitleBarBackgroundColor`, and `WindowBorderColor`. Any properties that you omit or leave `null` will use the standard OS light and dark colors from the `Theme` you passed. You can pass a custom RGB value using `Color.FromArgb(red: 255, green: 127, blue: 0)`. Alpha values are ignored.
+You can pass any or all of the three properties `TitleBarTextColor`, `TitleBarBackgroundColor`, and `WindowBorderColor`. You can pass a custom RGB value using `Color.FromArgb(red: 255, green: 127, blue: 0)`. Alpha values are ignored. Properties that you omit or leave `null` will remain unchanged from their previous appearance, which would be either the last value you set, or the OS default color for your `Theme` if you never set it for the window.
 
-By default, Windows will automatically change the color of the title bar text and minimize, maximize/restore, and close button icons to light or dark in order to provide maximal contrast with `TitleBarBackgroundColor`. If you set `TitleBarTextColor`, Windows will use it, and will only change the button icon color automatically.
+By default, Windows will automatically change the color of the title bar text and minimize, maximize/restore, and close button icons to light or dark in order to provide maximal contrast with `TitleBarBackgroundColor`. If you set `TitleBarTextColor`, Windows will use it for the title text, and will only change the button icon color automatically.
 
 To apply the same custom colors to all of the windows in your process, you may instead pass the `ThemeOptions` to `SetCurrentProcessTheme(Theme, ThemeOptions?)`, then omit the `options` parameter when you call `SetWindowTheme*(window, theme, options)`. Alternatively, you may set some of the properties at the process level and set others at the window level. You may also set a property at both the process and window level, and the window level value will take precedence.
 
@@ -348,7 +348,8 @@ Requires [.NET Framework 4.8](https://dotnet.microsoft.com/en-us/download/dotnet
 
 ## Acknowledgements
 
-- [Milan Burda](https://github.com/miniak) for explaining how to add this in Electron ([electron/electron #23479: [Windows] Title bar does not respect dark mode](https://github.com/electron/electron/issues/23479))
+- [Milan Burda](https://github.com/miniak) for [explaining how to add this in Electron](https://github.com/electron/electron/issues/23479)
 - [dyasta](https://stackoverflow.com/users/191514/dyasta) for [an explanation on Stack Overflow](https://stackoverflow.com/a/58547831/979493)
 - [Richard Yu](https://github.com/ysc3839) for [implementing this in a C++ library](https://github.com/ysc3839/win32-darkmode)
 - [Berrysoft](https://github.com/Berrysoft) for [implementing this in Mintty, the Cygwin Terminal emulator](https://github.com/mintty/mintty/issues/983) ([further discussion](https://github.com/mintty/mintty/pull/984))
+- [Pavel Yosifovich](https://twitter.com/zodiacon) for [showing how to set custom title bar colors in Windows 11](https://twitter.com/zodiacon/status/1416734060278341633)
