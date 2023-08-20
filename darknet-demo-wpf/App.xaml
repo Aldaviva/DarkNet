@@ -1,14 +1,17 @@
 ﻿<Application x:Class="darknet_demo_wpf.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:darknet="clr-namespace:Dark.Net.Wpf;assembly=DarkNet"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <!-- This will be replaced with the correct skin to match the title bar theme by SkinManager -->
-                <ResourceDictionary Source="Skins/Skin.Dark.xaml" />
+                <!-- <ResourceDictionary Source="Skins/Skin.Dark.xaml" /> -->
                 <!-- <ResourceDictionary Source="Skins/Skin.Light.xaml" /> -->
             </ResourceDictionary.MergedDictionaries>
+
+            <darknet:SkinManager x:Key="skinManager"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

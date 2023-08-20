@@ -28,7 +28,7 @@ public partial class Form1: Form {
             CheckState.Indeterminate => Theme.Auto,
             _                        => Theme.Auto
         };
-        DarkNet.Instance.SetCurrentProcessTheme(theme);
+        DarkNet.Instance.SetCurrentProcessTheme(theme, Program.ThemeOptions);
         Console.WriteLine($"Process theme is {theme}");
     }
 

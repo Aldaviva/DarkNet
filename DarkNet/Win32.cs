@@ -67,6 +67,9 @@ internal static class Win32 {
     [DllImport(User32)]
     internal static extern IntPtr GetForegroundWindow();
 
+    [DllImport(UxTheme, CharSet = CharSet.Unicode, SetLastError = true)]
+    internal static extern int SetWindowTheme(IntPtr window, string? substituteAppName, string? substituteIdList);
+
 }
 
 [StructLayout(LayoutKind.Sequential)]

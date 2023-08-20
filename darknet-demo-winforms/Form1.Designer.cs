@@ -32,6 +32,11 @@ namespace darknet_demo_winforms
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
             this.label1 = new System.Windows.Forms.Label();
             this.darkModeCheckbox = new System.Windows.Forms.CheckBox();
+            this.hScrollBar1 = new System.Windows.Forms.HScrollBar();
+            this.vScrollBar1 = new System.Windows.Forms.VScrollBar();
+            this.panel1 = new System.Windows.Forms.Panel();
+            this.panel2 = new System.Windows.Forms.Panel();
+            this.panel1.SuspendLayout();
             this.SuspendLayout();
             // 
             // label1
@@ -62,18 +67,52 @@ namespace darknet_demo_winforms
             this.darkModeCheckbox.UseVisualStyleBackColor = false;
             this.darkModeCheckbox.CheckStateChanged += new System.EventHandler(this.onDarkModeCheckboxChanged);
             // 
+            // hScrollBar1
+            // 
+            this.hScrollBar1.Location = new System.Drawing.Point(282, 366);
+            this.hScrollBar1.Name = "hScrollBar1";
+            this.hScrollBar1.Size = new System.Drawing.Size(80, 17);
+            this.hScrollBar1.TabIndex = 2;
+            // 
+            // vScrollBar1
+            // 
+            this.vScrollBar1.Location = new System.Drawing.Point(722, 325);
+            this.vScrollBar1.Name = "vScrollBar1";
+            this.vScrollBar1.Size = new System.Drawing.Size(17, 80);
+            this.vScrollBar1.TabIndex = 3;
+            // 
+            // panel1
+            // 
+            this.panel1.AutoScroll = true;
+            this.panel1.Controls.Add(this.panel2);
+            this.panel1.Location = new System.Drawing.Point(470, 281);
+            this.panel1.Name = "panel1";
+            this.panel1.Size = new System.Drawing.Size(200, 102);
+            this.panel1.TabIndex = 4;
+            // 
+            // panel2
+            // 
+            this.panel2.Location = new System.Drawing.Point(4, 4);
+            this.panel2.Name = "panel2";
+            this.panel2.Size = new System.Drawing.Size(429, 305);
+            this.panel2.TabIndex = 0;
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(19)))), ((int)(((byte)(19)))));
             this.ClientSize = new System.Drawing.Size(792, 419);
+            this.Controls.Add(this.panel1);
+            this.Controls.Add(this.vScrollBar1);
+            this.Controls.Add(this.hScrollBar1);
             this.Controls.Add(this.darkModeCheckbox);
             this.Controls.Add(this.label1);
             this.ForeColor = System.Drawing.Color.White;
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Name = "Form1";
             this.Text = "Forms demo - .NET Framework 4.8 - DarkNet";
+            this.panel1.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -83,6 +122,10 @@ namespace darknet_demo_winforms
 
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.CheckBox darkModeCheckbox;
+        private System.Windows.Forms.HScrollBar hScrollBar1;
+        private System.Windows.Forms.VScrollBar vScrollBar1;
+        private System.Windows.Forms.Panel panel1;
+        private System.Windows.Forms.Panel panel2;
     }
 }
 

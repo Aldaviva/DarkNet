@@ -1,15 +1,18 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security;
 using System.Threading;
 using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Interop;
+using Dark.Net.Events;
 using Microsoft.Win32;
 
 namespace Dark.Net;
@@ -38,17 +41,17 @@ public class DarkNet: IDarkNet {
     /// <summary>
     /// Mapping from a window handle to the most recently set <see cref="Theme"/> for that window, used to correctly reapply themes when a parent theme (process or OS) changes.
     /// </summary>
-    protected readonly ConcurrentDictionary<IntPtr, Theme> PreferredWindowModes = new();
+    private readonly ConcurrentDictionary<IntPtr, WindowThemeState> _windowStates = new();
 
     /// <summary>
     /// The most recently set theme for this process, used to correctly reapply themes to this process's windows when the user changes their OS settings.
     /// </summary>
-    protected Theme? PreferredAppTheme;
+    private Theme? _preferredAppTheme;
 
     /// <summary>
     /// Most recent value for whether the process's theme is dark, after taking into account high contrast mode. Null if never set. Used to back the <see cref="EffectiveCurrentProcessThemeIsDark"/> property and fire <see cref="EffectiveCurrentProcessThemeIsDarkChanged"/> events.
     /// </summary>
-    protected bool? EffectiveProcessThemeIsDark;
+    private bool? _effectiveProcessThemeIsDark;
 
     private bool?         _userDefaultAppThemeIsDark;
     private bool?         _userTaskbarThemeIsDark;
@@ -65,6 +68,8 @@ public class DarkNet: IDarkNet {
     /// <inheritdoc />
     public event EventHandler<bool>? EffectiveCurrentProcessThemeIsDarkChanged;
 
+    public event EventHandler<WindowThemeChangedEventArgs>? EffectiveWindowThemeIsDarkChanged;
+
     /// <summary>
     /// <para>Create a new instance of the DarkNet library class. Alternatively, you can use the static singleton <see cref="Instance"/>.</para>
     /// <para>Useful if you want to manage the memory lifecycle and dispose of it manually to insulate yourself from other consumers that may try to dispose of <see cref="Instance"/>.</para>
@@ -78,6 +83,7 @@ public class DarkNet: IDarkNet {
     /// <inheritdoc />
     public virtual void SetCurrentProcessTheme(Theme theme, ThemeOptions? options = null) {
         _processThemeChanged = 1;
+        _processThemeOptions = options;
 
         try {
             // Windows 10 1903 and later
@@ -93,16 +99,15 @@ public class DarkNet: IDarkNet {
                 Win32.AllowDarkModeForApp(true);
             } catch (Exception e2) when (e2 is not OutOfMemoryException) {
                 Trace.TraceWarning("Failed to set dark mode for process: {0}", e1.Message);
+                return;
             }
         }
 
-        PreferredAppTheme    = theme;
-        _processThemeOptions = options;
-
+        _preferredAppTheme = theme;
         RefreshTitleBarThemeColor();
 
-        if (EffectiveProcessThemeIsDark == null) {
-            EffectiveCurrentProcessThemeIsDark = theme switch {
+        if (_effectiveProcessThemeIsDark == null) {
+            EffectiveCurrentProcessThemeIsDark = _preferredAppTheme switch {
                 Theme.Auto  => UserDefaultAppThemeIsDark && !IsHighContrast(),
                 Theme.Light => false,
                 Theme.Dark  => !IsHighContrast(),
@@ -126,36 +131,46 @@ public class DarkNet: IDarkNet {
         } else {
             IntPtr windowHandle = new WindowInteropHelper(window).Handle;
 
+            WindowThemeState windowThemeState;
             try {
-                SetModeForWindow(windowHandle, theme, options);
+                windowThemeState           = SetModeForWindow(windowHandle, theme, options);
+                windowThemeState.WpfWindow = window;
             } catch (DarkNetException.LifecycleException) {
                 throw new InvalidOperationException($"Called {nameof(SetWindowThemeWpf)}() too late, call it in OnSourceInitialized or the Window subclass's constructor");
             }
 
             void OnClosing(object _, CancelEventArgs args) {
-                window.Closing -= OnClosing;
+                window.Closing                         -= OnClosing;
+                windowThemeState.EffectiveThemeChanged -= OnWindowEffectiveThemeChanged;
                 OnWindowClosing(windowHandle);
             }
 
-            window.Closing += OnClosing;
+            window.Closing                         += OnClosing;
+            windowThemeState.EffectiveThemeChanged += OnWindowEffectiveThemeChanged;
+            OnWindowEffectiveThemeChanged(windowThemeState, windowThemeState.EffectiveThemeIsDark);
         }
     }
 
     /// <inheritdoc />
     public virtual void SetWindowThemeForms(Form window, Theme theme, ThemeOptions? options = null) {
+        WindowThemeState windowThemeState;
         try {
-            SetModeForWindow(window.Handle, theme, options);
+            windowThemeState             = SetModeForWindow(window.Handle, theme, options);
+            windowThemeState.FormsWindow = window;
         } catch (DarkNetException.LifecycleException) {
             throw new InvalidOperationException($"Called {nameof(SetWindowThemeForms)}() too late, call it before Form.Show() or Application.Run(), and after " +
                 $"{nameof(IDarkNet)}.{nameof(SetCurrentProcessTheme)}()");
         }
 
         void OnClosing(object _, CancelEventArgs args) {
-            window.Closing -= OnClosing;
+            window.Closing                         -= OnClosing;
+            windowThemeState.EffectiveThemeChanged -= OnWindowEffectiveThemeChanged;
             OnWindowClosing(window.Handle);
         }
 
-        window.Closing += OnClosing;
+        window.Closing                         += OnClosing;
+        windowThemeState.EffectiveThemeChanged += OnWindowEffectiveThemeChanged;
+        OnWindowEffectiveThemeChanged(windowThemeState, windowThemeState.EffectiveThemeIsDark);
     }
 
     /// <inheritdoc />
@@ -167,6 +182,30 @@ public class DarkNet: IDarkNet {
         }
     }
 
+    private void OnWindowEffectiveThemeChanged(WindowThemeState windowThemeState, bool isDarkMode) {
+        WindowThemeChangedEventArgs? eventArgs = windowThemeState switch {
+            { WpfWindow: { } wpfWindow }     => new WpfWindowThemeChangedEventArgs(wpfWindow, isDarkMode),
+            { FormsWindow: { } formsWindow } => new FormsWindowThemeChangedEventArgs(formsWindow, isDarkMode),
+            _                                => null
+        };
+
+        if (eventArgs != null) {
+            EffectiveWindowThemeIsDarkChanged?.Invoke(this, eventArgs);
+        }
+    }
+
+    public bool? GetWindowEffectiveThemeIsDarkWpf(Window window) {
+        return GetWindowEffectiveThemeIsDarkRaw(new WindowInteropHelper(window).Handle);
+    }
+
+    public bool? GetWindowEffectiveThemeIsDarkForms(Form window) {
+        return GetWindowEffectiveThemeIsDarkRaw(window.Handle);
+    }
+
+    public bool? GetWindowEffectiveThemeIsDarkRaw(IntPtr window) {
+        return _windowStates.TryGetValue(window, out WindowThemeState? windowThemeState) ? windowThemeState.EffectiveThemeIsDark : null;
+    }
+
     private void ImplicitlySetProcessThemeIfFirstCall(Theme theme) {
         if (_processThemeChanged == 0) {
             SetCurrentProcessTheme(theme);
@@ -174,18 +213,21 @@ public class DarkNet: IDarkNet {
     }
 
     /// <summary>
-    ///     <para>call this after creating but before showing a window, such as WPF's Window.OnSourceInitialized or Forms' Form.Load</para>
+    ///     <para>call this after creating but before showing a window, such as the WPF method Window.OnSourceInitialized or Forms' Form.Load</para>
     ///     <para>if window.Visibility==VISIBLE and WindowPlacement.ShowCmd == SW_HIDE (or whatever), it was definitely called too early </para>
     ///     <para>if GetWindowInfo().style.WS_VISIBLE == true then it was called too late</para>
     /// </summary>
+    /// <returns><see langword="true"/> if the window is using dark mode after this call returns, or <see langword="false"/> if it is using light mode</returns>
     /// <exception cref="DarkNetException.LifecycleException">if it is called too late</exception>
-    protected virtual void SetModeForWindow(IntPtr windowHandle, Theme windowTheme, ThemeOptions? options = null) {
+    private WindowThemeState SetModeForWindow(IntPtr windowHandle, Theme windowTheme, ThemeOptions? options = null) {
         ImplicitlySetProcessThemeIfFirstCall(windowTheme);
 
         bool isFirstRunForWindow = true;
-        PreferredWindowModes.AddOrUpdate(windowHandle, windowTheme, (_, _) => {
-            isFirstRunForWindow = false;
-            return windowTheme;
+        WindowThemeState windowState = _windowStates.AddOrUpdate(windowHandle, hwnd => new WindowThemeState(windowHandle, windowTheme, options), (_, oldState) => {
+            isFirstRunForWindow     = false;
+            oldState.PreferredTheme = windowTheme;
+            oldState.Options        = options;
+            return oldState;
         });
 
         if (isFirstRunForWindow && IsWindowVisible(windowHandle)) {
@@ -196,18 +238,20 @@ public class DarkNet: IDarkNet {
             Win32.AllowDarkModeForWindow(windowHandle, windowTheme != Theme.Light);
         } catch (EntryPointNotFoundException) {
             // #9: possibly Wine, do nothing
-            return;
+            return windowState;
         }
 
-        RefreshTitleBarThemeColor(windowHandle, options);
+        RefreshTitleBarThemeColor(windowHandle, windowState);
+
+        return windowState;
     }
 
     /// <summary>
-    /// Fired when a WPF or Forms window is about to close, so that we can release the entry in the <see cref="PreferredWindowModes"/> map and free its memory.
+    /// Fired when a WPF or Forms window is about to close, so that we can release the entry in the <see cref="_windowStates"/> map and free its memory.
     /// </summary>
     /// <param name="windowHandle"></param>
-    protected void OnWindowClosing(IntPtr windowHandle) {
-        PreferredWindowModes.TryRemove(windowHandle, out _);
+    private void OnWindowClosing(IntPtr windowHandle) {
+        _windowStates.TryRemove(windowHandle, out _);
     }
 
     private void OnSettingsChanged(object sender, UserPreferenceChangedEventArgs args) {
@@ -217,8 +261,8 @@ public class DarkNet: IDarkNet {
     }
 
     private void RefreshTitleBarThemeColor() {
-        foreach (IntPtr trackedWindow in PreferredWindowModes.Keys) {
-            RefreshTitleBarThemeColor(trackedWindow);
+        foreach (KeyValuePair<IntPtr, WindowThemeState> trackedWindow in _windowStates) {
+            RefreshTitleBarThemeColor(trackedWindow.Key, trackedWindow.Value);
         }
     }
 
@@ -227,13 +271,12 @@ public class DarkNet: IDarkNet {
     /// </summary>
     /// <param name="windowHandle">A pointer to the window to update</param>
     /// <param name="options">Windows 11 DWM color overrides</param>
-    protected virtual void RefreshTitleBarThemeColor(IntPtr windowHandle, ThemeOptions? options = null) {
+    /// <returns><see langword="true"/> if the window is using dark mode after this call returns, or <see langword="false"/> if it is using light mode</returns>
+    private void RefreshTitleBarThemeColor(IntPtr windowHandle, WindowThemeState windowThemeState) {
         try {
-            if (!PreferredWindowModes.TryGetValue(windowHandle, out Theme windowTheme)) {
-                windowTheme = Theme.Auto;
-            }
+            Theme windowTheme = windowThemeState.PreferredTheme;
 
-            Theme appTheme                  = PreferredAppTheme ?? Theme.Auto;
+            Theme appTheme                  = _preferredAppTheme ?? Theme.Auto;
             bool  userDefaultAppThemeIsDark = UserDefaultAppThemeIsDark;
             bool  isHighContrast            = IsHighContrast();
 
@@ -269,20 +312,23 @@ public class DarkNet: IDarkNet {
                     Win32.SetProp(windowHandle, "UseImmersiveDarkModeColors", new IntPtr(Convert.ToInt64(isDarkTheme)));
                 } catch (Exception e2) when (e2 is not OutOfMemoryException) {
                     Trace.TraceWarning("Failed to set dark mode for window: {0}", e1.Message);
+                    return;
                 }
             } finally {
                 Marshal.FreeHGlobal(attributeValueBuffer);
             }
 
-            if ((options?.TitleBarBackgroundColor ?? _processThemeOptions?.TitleBarBackgroundColor) is { } titleBarBackgroundColor) {
+            windowThemeState.EffectiveThemeIsDark = isDarkTheme;
+
+            if ((windowThemeState.Options?.TitleBarBackgroundColor ?? _processThemeOptions?.TitleBarBackgroundColor) is { } titleBarBackgroundColor) {
                 SetDwmWindowColor(windowHandle, DwmWindowAttribute.DwmwaCaptionColor, titleBarBackgroundColor);
             }
 
-            if ((options?.TitleBarTextColor ?? _processThemeOptions?.TitleBarTextColor) is { } titleBarTextColor) {
+            if ((windowThemeState.Options?.TitleBarTextColor ?? _processThemeOptions?.TitleBarTextColor) is { } titleBarTextColor) {
                 SetDwmWindowColor(windowHandle, DwmWindowAttribute.DwmwaTextColor, titleBarTextColor);
             }
 
-            if ((options?.WindowBorderColor ?? _processThemeOptions?.WindowBorderColor) is { } windowBorderColor) {
+            if ((windowThemeState.Options?.WindowBorderColor ?? _processThemeOptions?.WindowBorderColor) is { } windowBorderColor) {
                 SetDwmWindowColor(windowHandle, DwmWindowAttribute.DwmwaBorderColor, windowBorderColor);
             }
 
@@ -301,6 +347,18 @@ public class DarkNet: IDarkNet {
 
             // Needed to make the context menu theme change when you change the app theme after showing a window.
             Win32.FlushMenuThemes();
+
+            // Optionally theme Windows Forms scrollbars
+            bool? windowRequiresThemedScrollbars  = windowThemeState.Options?.ApplyThemeToDescendentFormsScrollbars;
+            bool  processRequiresThemedScrollbars = _processThemeOptions?.ApplyThemeToDescendentFormsScrollbars ?? false;
+
+            if ((windowRequiresThemedScrollbars == true || (windowRequiresThemedScrollbars == null && processRequiresThemedScrollbars)) &&
+                Control.FromHandle(windowHandle) is { } formsWindow) {
+                foreach (Control scrollbar in formsWindow.Controls.Cast<Control>().Where(control => control is HScrollBar or VScrollBar or ScrollableControl { AutoScroll: true })) {
+                    Win32.SetWindowTheme(scrollbar.Handle, isDarkTheme ? "DarkMode_Explorer" : null, isDarkTheme ? "ScrollBar" : null);
+                }
+            }
+
         } catch (EntryPointNotFoundException) {
             // #9: possibly Wine, do nothing
         }
@@ -358,10 +416,10 @@ public class DarkNet: IDarkNet {
 
     /// <inheritdoc />
     public virtual bool EffectiveCurrentProcessThemeIsDark {
-        get => EffectiveProcessThemeIsDark ?? false;
+        get => _effectiveProcessThemeIsDark ?? false;
         private set {
-            if (value != EffectiveProcessThemeIsDark) {
-                EffectiveProcessThemeIsDark = value;
+            if (value != _effectiveProcessThemeIsDark) {
+                _effectiveProcessThemeIsDark = value;
                 EffectiveCurrentProcessThemeIsDarkChanged?.Invoke(this, value);
             }
         }
@@ -380,18 +438,12 @@ public class DarkNet: IDarkNet {
         return Win32.SystemParametersInfo(getHighContrast, highContrastData.size, ref highContrastData, 0) && (highContrastData.flags & highContrastOn) != 0;
     }
 
-    /// <inheritdoc cref="IDisposable.Dispose" />
-    protected virtual void Dispose(bool disposing) {
-        if (disposing) {
-            try {
-                SystemEvents.UserPreferenceChanged -= OnSettingsChanged;
-            } catch (ExternalException) { }
-        }
-    }
-
     /// <inheritdoc />
     public void Dispose() {
-        Dispose(true);
+        try {
+            SystemEvents.UserPreferenceChanged -= OnSettingsChanged;
+        } catch (ExternalException) { }
+
         GC.SuppressFinalize(this);
     }
 

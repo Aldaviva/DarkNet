@@ -8,6 +8,8 @@ namespace darknet_demo_winforms;
 
 internal static class Program {
 
+    public static readonly ThemeOptions ThemeOptions = new() { ApplyThemeToDescendentFormsScrollbars = true };
+
     [STAThread]
     private static void Main() {
         Application.EnableVisualStyles();
@@ -15,7 +17,7 @@ internal static class Program {
 
         IDarkNet darkNet      = DarkNet.Instance;
         Theme    processTheme = Theme.Auto;
-        darkNet.SetCurrentProcessTheme(processTheme);
+        darkNet.SetCurrentProcessTheme(processTheme, ThemeOptions);
         Console.WriteLine($"Process theme is {processTheme}");
 
         Form  mainForm    = new Form1();

@@ -1,7 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Linq;
 using System.Windows;
+using Dark.Net.Events;
 
 namespace Dark.Net.Wpf;
 
@@ -35,10 +38,10 @@ public interface ISkinManager: IDisposable {
 /// <inheritdoc />
 public class SkinManager: ISkinManager {
 
-    private          ResourceDictionary? _skinResources;
-    private          Uri?                _lightThemeResources;
-    private          Uri?                _darkThemeResources;
-    private readonly IDarkNet            _darkNet;
+    private Skin? _appSkin;
+
+    private readonly IDarkNet                  _darkNet;
+    private readonly IDictionary<Window, Skin> _windowSkins = new Dictionary<Window, Skin>();
 
     /// <summary>
     /// Create a new instance that uses the default <see cref="DarkNet"/> instance.
@@ -51,26 +54,57 @@ public class SkinManager: ISkinManager {
     /// <param name="darkNet"></param>
     public SkinManager(IDarkNet darkNet) {
         _darkNet = darkNet;
+
+        _darkNet.EffectiveCurrentProcessThemeIsDarkChanged += UpdateResource;
+        _darkNet.EffectiveWindowThemeIsDarkChanged         += UpdateWindowResource;
     }
 
     /// <inheritdoc />
     public virtual void RegisterSkins(Uri lightThemeResources, Uri darkThemeResources) {
-        _darkThemeResources  = darkThemeResources;
-        _lightThemeResources = lightThemeResources;
+        if (_appSkin == null) {
+            Collection<ResourceDictionary> appResources     = Application.Current.Resources.MergedDictionaries;
+            ResourceDictionary?            appSkinResources = appResources.FirstOrDefault(r => r.Source.Equals(lightThemeResources) || r.Source.Equals(darkThemeResources));
 
-        if (_skinResources == null) {
-            Collection<ResourceDictionary> appResources = Application.Current.Resources.MergedDictionaries;
-            _skinResources = appResources.FirstOrDefault(r => r.Source.Equals(lightThemeResources) || r.Source.Equals(darkThemeResources));
-
-            if (_skinResources == null) {
-                _skinResources = new ResourceDictionary();
-                appResources.Add(_skinResources);
+            if (appSkinResources == null) {
+                appSkinResources = new ResourceDictionary();
+                appResources.Add(appSkinResources);
             }
 
-            UpdateResource(null, _darkNet.EffectiveCurrentProcessThemeIsDark);
-
-            _darkNet.EffectiveCurrentProcessThemeIsDarkChanged += UpdateResource;
+            _appSkin = new Skin(lightThemeResources, darkThemeResources, appSkinResources);
         }
+
+        UpdateResource(null, _darkNet.EffectiveCurrentProcessThemeIsDark);
+    }
+
+    public virtual void RegisterSkins(Uri lightThemeResources, Uri darkThemeResources, Window window) {
+        // not thread safe
+        _windowSkins.TryGetValue(window, out Skin? skin);
+
+        if (skin == null) {
+            Collection<ResourceDictionary> windowResources     = window.Resources.MergedDictionaries;
+            ResourceDictionary?            windowSkinResources = windowResources.FirstOrDefault(r => r.Source.Equals(lightThemeResources) || r.Source.Equals(darkThemeResources));
+
+            if (windowSkinResources == null) {
+                windowSkinResources = new ResourceDictionary();
+                windowResources.Add(windowSkinResources);
+            }
+
+            skin = new Skin(lightThemeResources, darkThemeResources, windowSkinResources);
+
+            _windowSkins[window] = skin;
+
+            window.Closing += OnCloseWindow;
+        } else {
+            skin.DarkThemeResources  = darkThemeResources;
+            skin.LightThemeResources = lightThemeResources;
+        }
+
+        UpdateWindowResource(null, new WpfWindowThemeChangedEventArgs(window, _darkNet.GetWindowEffectiveThemeIsDarkWpf(window) ?? false));
+    }
+
+    private void OnCloseWindow(object sender, CancelEventArgs e) {
+        Window window = (Window) sender;
+        _windowSkins.Remove(window);
     }
 
     /// <summary>
@@ -81,15 +115,24 @@ public class SkinManager: ISkinManager {
     /// <param name="eventSource">unused</param>
     /// <param name="isDarkTheme"><see langword="true" /> if the process is set to <see cref="Theme.Dark"/>, or <see langword="false"/> if it is set to <see cref="Theme.Light"/>.</param>
     protected virtual void UpdateResource(object? eventSource, bool isDarkTheme) {
-        if (_skinResources != null) {
-            _skinResources.Source = isDarkTheme ? _darkThemeResources : _lightThemeResources;
+        if (_appSkin != null) {
+            _appSkin.WindowSkinResources.Source = isDarkTheme ? _appSkin.DarkThemeResources : _appSkin.LightThemeResources;
         }
     }
 
-    /// <inheritdoc />
+    private void UpdateWindowResource(object? sender, WindowThemeChangedEventArgs e) {
+        if (e is WpfWindowThemeChangedEventArgs wpfArgs) {
+            if (_windowSkins.TryGetValue(wpfArgs.Window, out Skin? skin)) {
+                skin.WindowSkinResources.Source = e.EffectiveWindowThemeIsDark ? skin.DarkThemeResources : skin.LightThemeResources;
+            }
+        }
+    }
+
+    /// <inheritdoc cref="IDisposable.Dispose" />
     protected virtual void Dispose(bool disposing) {
         if (disposing) {
             _darkNet.EffectiveCurrentProcessThemeIsDarkChanged -= UpdateResource;
+            _darkNet.EffectiveWindowThemeIsDarkChanged         -= UpdateWindowResource;
         }
     }
 
@@ -97,6 +140,20 @@ public class SkinManager: ISkinManager {
     public void Dispose() {
         Dispose(true);
         GC.SuppressFinalize(this);
+    }
+
+    private class Skin {
+
+        public          Uri                LightThemeResources;
+        public          Uri                DarkThemeResources;
+        public readonly ResourceDictionary WindowSkinResources;
+
+        public Skin(Uri lightThemeResources, Uri darkThemeResources, ResourceDictionary windowSkinResources) {
+            WindowSkinResources = windowSkinResources;
+            LightThemeResources = lightThemeResources;
+            DarkThemeResources  = darkThemeResources;
+        }
+
     }
 
 }

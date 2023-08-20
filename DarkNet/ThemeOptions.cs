@@ -42,4 +42,6 @@ public class ThemeOptions {
     /// </summary>
     public static readonly Color DefaultColor = Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF);
 
+    public bool? ApplyThemeToDescendentFormsScrollbars { get; set; } = null;
+
 }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Windows;
 using System.Windows.Forms;
+using Dark.Net.Events;
 
 // ReSharper disable UnusedMemberInSuper.Global - it's a public library interface
 // ReSharper disable UnusedMember.Global
@@ -109,5 +110,13 @@ public interface IDarkNet: IDisposable {
     /// <para>You may choose to handle this event if, for example, you want to show a tray icon in the notification area that depends on the taskbar theme.</para>
     /// </summary>
     event EventHandler<bool>? UserTaskbarThemeIsDarkChanged;
+
+    event EventHandler<WindowThemeChangedEventArgs>? EffectiveWindowThemeIsDarkChanged;
+
+    bool? GetWindowEffectiveThemeIsDarkWpf(Window window);
+
+    bool? GetWindowEffectiveThemeIsDarkForms(Form window);
+
+    bool? GetWindowEffectiveThemeIsDarkRaw(IntPtr window);
 
 }
