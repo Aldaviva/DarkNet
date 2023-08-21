@@ -14,6 +14,7 @@ using System.Windows.Forms;
 using System.Windows.Interop;
 using Dark.Net.Events;
 using Microsoft.Win32;
+using SystemColors = System.Drawing.SystemColors;
 
 namespace Dark.Net;
 
@@ -139,15 +140,15 @@ public class DarkNet: IDarkNet {
                 throw new InvalidOperationException($"Called {nameof(SetWindowThemeWpf)}() too late, call it in OnSourceInitialized or the Window subclass's constructor");
             }
 
+            window.Closing                         += OnClosing;
+            windowThemeState.EffectiveThemeChanged += OnWindowEffectiveThemeChanged;
+            OnWindowEffectiveThemeChanged(windowThemeState, windowThemeState.EffectiveThemeIsDark);
+
             void OnClosing(object _, CancelEventArgs args) {
                 window.Closing                         -= OnClosing;
                 windowThemeState.EffectiveThemeChanged -= OnWindowEffectiveThemeChanged;
                 OnWindowClosing(windowHandle);
             }
-
-            window.Closing                         += OnClosing;
-            windowThemeState.EffectiveThemeChanged += OnWindowEffectiveThemeChanged;
-            OnWindowEffectiveThemeChanged(windowThemeState, windowThemeState.EffectiveThemeIsDark);
         }
     }
 
@@ -162,15 +163,15 @@ public class DarkNet: IDarkNet {
                 $"{nameof(IDarkNet)}.{nameof(SetCurrentProcessTheme)}()");
         }
 
+        window.Closing                         += OnClosing;
+        windowThemeState.EffectiveThemeChanged += OnWindowEffectiveThemeChanged;
+        OnWindowEffectiveThemeChanged(windowThemeState, windowThemeState.EffectiveThemeIsDark);
+
         void OnClosing(object _, CancelEventArgs args) {
             window.Closing                         -= OnClosing;
             windowThemeState.EffectiveThemeChanged -= OnWindowEffectiveThemeChanged;
             OnWindowClosing(window.Handle);
         }
-
-        window.Closing                         += OnClosing;
-        windowThemeState.EffectiveThemeChanged += OnWindowEffectiveThemeChanged;
-        OnWindowEffectiveThemeChanged(windowThemeState, windowThemeState.EffectiveThemeIsDark);
     }
 
     /// <inheritdoc />
@@ -217,7 +218,7 @@ public class DarkNet: IDarkNet {
     ///     <para>if window.Visibility==VISIBLE and WindowPlacement.ShowCmd == SW_HIDE (or whatever), it was definitely called too early </para>
     ///     <para>if GetWindowInfo().style.WS_VISIBLE == true then it was called too late</para>
     /// </summary>
-    /// <returns><see langword="true"/> if the window is using dark mode after this call returns, or <see langword="false"/> if it is using light mode</returns>
+    /// <returns>The new state of this window's theming</returns>
     /// <exception cref="DarkNetException.LifecycleException">if it is called too late</exception>
     private WindowThemeState SetModeForWindow(IntPtr windowHandle, Theme windowTheme, ThemeOptions? options = null) {
         ImplicitlySetProcessThemeIfFirstCall(windowTheme);
@@ -270,25 +271,21 @@ public class DarkNet: IDarkNet {
     /// Apply all of the theme fallback/override logic and call the OS methods to apply the window theme. Handles the window theme, app theme, OS theme, high contrast, different Windows versions, Windows 11 colors, repainting visible windows, and updating context menus.
     /// </summary>
     /// <param name="windowHandle">A pointer to the window to update</param>
-    /// <param name="options">Windows 11 DWM color overrides</param>
-    /// <returns><see langword="true"/> if the window is using dark mode after this call returns, or <see langword="false"/> if it is using light mode</returns>
+    /// <param name="windowThemeState">Current values and optional extra parameters for this window's theme</param>
     private void RefreshTitleBarThemeColor(IntPtr windowHandle, WindowThemeState windowThemeState) {
         try {
             Theme windowTheme = windowThemeState.PreferredTheme;
-
-            Theme appTheme                  = _preferredAppTheme ?? Theme.Auto;
-            bool  userDefaultAppThemeIsDark = UserDefaultAppThemeIsDark;
-            bool  isHighContrast            = IsHighContrast();
+            Theme appTheme    = _preferredAppTheme ?? Theme.Auto;
 
             if (appTheme == Theme.Auto) {
-                appTheme = userDefaultAppThemeIsDark ? Theme.Dark : Theme.Light;
+                appTheme = UserDefaultAppThemeIsDark ? Theme.Dark : Theme.Light;
             }
 
             if (windowTheme == Theme.Auto) {
                 windowTheme = appTheme;
             }
 
-            if (isHighContrast) {
+            if (IsHighContrast()) {
                 windowTheme = Theme.Light;
                 appTheme    = Theme.Light;
             } else if (!Win32.IsDarkModeAllowedForWindow(windowHandle)) {
@@ -320,47 +317,80 @@ public class DarkNet: IDarkNet {
 
             windowThemeState.EffectiveThemeIsDark = isDarkTheme;
 
-            if ((windowThemeState.Options?.TitleBarBackgroundColor ?? _processThemeOptions?.TitleBarBackgroundColor) is { } titleBarBackgroundColor) {
-                SetDwmWindowColor(windowHandle, DwmWindowAttribute.DwmwaCaptionColor, titleBarBackgroundColor);
-            }
-
-            if ((windowThemeState.Options?.TitleBarTextColor ?? _processThemeOptions?.TitleBarTextColor) is { } titleBarTextColor) {
-                SetDwmWindowColor(windowHandle, DwmWindowAttribute.DwmwaTextColor, titleBarTextColor);
-            }
-
-            if ((windowThemeState.Options?.WindowBorderColor ?? _processThemeOptions?.WindowBorderColor) is { } windowBorderColor) {
-                SetDwmWindowColor(windowHandle, DwmWindowAttribute.DwmwaBorderColor, windowBorderColor);
-            }
-
-            /*
-             * Needed for subsequent (after the window has already been shown) theme changes, otherwise the title bar will only update after you later hide, blur, or resize the window.
-             * Not needed when changing the theme for the first time, before the window has ever been shown.
-             * Windows 11 does not need this.
-             * Windows 10 needs this (1809, 22H2, and likely every other version).
-             * Neither RedrawWindow() nor UpdateWindow() fix this.
-             * https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-ncactivate
-             */
-            const uint activateNonClientArea = 0x86;
-            bool       isWindowActive        = windowHandle == Win32.GetForegroundWindow();
-            Win32.SendMessage(windowHandle, activateNonClientArea, new IntPtr(isWindowActive ? 0 : 1), IntPtr.Zero);
-            Win32.SendMessage(windowHandle, activateNonClientArea, new IntPtr(isWindowActive ? 1 : 0), IntPtr.Zero);
-
-            // Needed to make the context menu theme change when you change the app theme after showing a window.
-            Win32.FlushMenuThemes();
-
-            // Optionally theme Windows Forms scrollbars
-            bool? windowRequiresThemedScrollbars  = windowThemeState.Options?.ApplyThemeToDescendentFormsScrollbars;
-            bool  processRequiresThemedScrollbars = _processThemeOptions?.ApplyThemeToDescendentFormsScrollbars ?? false;
-
-            if ((windowRequiresThemedScrollbars == true || (windowRequiresThemedScrollbars == null && processRequiresThemedScrollbars)) &&
-                Control.FromHandle(windowHandle) is { } formsWindow) {
-                foreach (Control scrollbar in formsWindow.Controls.Cast<Control>().Where(control => control is HScrollBar or VScrollBar or ScrollableControl { AutoScroll: true })) {
-                    Win32.SetWindowTheme(scrollbar.Handle, isDarkTheme ? "DarkMode_Explorer" : null, isDarkTheme ? "ScrollBar" : null);
-                }
-            }
-
+            ApplyCustomTitleBarColors(windowHandle, windowThemeState);
+            RepaintTitleBar(windowHandle);
+            Win32.FlushMenuThemes(); // Needed to make the context menu theme change when you change the app theme after showing a window.
+            ApplyThemeToFormsControls(windowHandle, windowThemeState);
         } catch (EntryPointNotFoundException) {
             // #9: possibly Wine, do nothing
+        }
+    }
+
+    private void ApplyCustomTitleBarColors(IntPtr windowHandle, WindowThemeState windowThemeState) {
+        if ((windowThemeState.Options?.TitleBarBackgroundColor ?? _processThemeOptions?.TitleBarBackgroundColor) is { } titleBarBackgroundColor) {
+            SetDwmWindowColor(windowHandle, DwmWindowAttribute.DwmwaCaptionColor, titleBarBackgroundColor);
+        }
+
+        if ((windowThemeState.Options?.TitleBarTextColor ?? _processThemeOptions?.TitleBarTextColor) is { } titleBarTextColor) {
+            SetDwmWindowColor(windowHandle, DwmWindowAttribute.DwmwaTextColor, titleBarTextColor);
+        }
+
+        if ((windowThemeState.Options?.WindowBorderColor ?? _processThemeOptions?.WindowBorderColor) is { } windowBorderColor) {
+            SetDwmWindowColor(windowHandle, DwmWindowAttribute.DwmwaBorderColor, windowBorderColor);
+        }
+    }
+
+    /// <summary>
+    /// <para>Needed for subsequent (after the window has already been shown) theme changes, otherwise the title bar will only update after you later hide, blur, or resize the window.</para>
+    /// <para>Not needed when changing the theme for the first time, before the window has ever been shown.</para>
+    /// <para>Windows 11 does not need this. Windows 10 needs this (1809, 22H2, and likely every other version).</para>
+    /// <para>Neither RedrawWindow() nor UpdateWindow() fix this.</para>
+    /// <para>https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-ncactivate</para>
+    /// </summary>
+    private static void RepaintTitleBar(IntPtr windowHandle) {
+        const uint activateNonClientArea = 0x86;
+        bool       isWindowActive        = windowHandle == Win32.GetForegroundWindow();
+        Win32.SendMessage(windowHandle, activateNonClientArea, new IntPtr(isWindowActive ? 0 : 1), IntPtr.Zero);
+        Win32.SendMessage(windowHandle, activateNonClientArea, new IntPtr(isWindowActive ? 1 : 0), IntPtr.Zero);
+    }
+
+    /// <summary>
+    /// Optionally theme Windows Forms scrollbars
+    /// </summary>
+    private void ApplyThemeToFormsControls(IntPtr windowHandle, WindowThemeState windowThemeState) {
+        bool isDarkTheme = windowThemeState.EffectiveThemeIsDark;
+        if ((windowThemeState.Options?.ApplyThemeToDescendentFormsScrollbars ?? _processThemeOptions?.ApplyThemeToDescendentFormsScrollbars ?? false) &&
+            Control.FromHandle(windowHandle) is { } formsWindow) {
+
+            foreach (Control control in formsWindow.Controls.Cast<Control>()
+                         .Where(control => control is HScrollBar or VScrollBar or ScrollableControl { AutoScroll: true } or MdiClient or TreeView)) {
+
+                if (control is TreeView treeView && treeView.ForeColor == GetTreeViewColor(!isDarkTheme, true) && treeView.BackColor == GetTreeViewColor(!isDarkTheme, false)) {
+                    if (isDarkTheme) {
+                        treeView.ForeColor = GetTreeViewColor(isDarkTheme, true);
+                        treeView.BackColor = GetTreeViewColor(isDarkTheme, false);
+                    } else {
+                        treeView.ResetForeColor();
+                        treeView.ResetBackColor();
+                    }
+                }
+
+                Win32.SetWindowTheme(control.Handle, isDarkTheme ? "DarkMode_Explorer" : null, null);
+
+                // Fix scrollbar corners and TreeView borders not repainting with the new theme. Neither Invalidate() nor Refresh() fix this issue, but hiding and showing the control fixes it.
+                if (control.Visible) {
+                    control.Visible = false;
+                    control.Visible = true;
+                }
+            }
+        }
+
+        static Color GetTreeViewColor(bool isDarkMode, bool isForeground) {
+            if (isForeground) {
+                return isDarkMode ? Color.White : SystemColors.WindowText;
+            } else {
+                return isDarkMode ? Color.FromArgb(25, 25, 25) : SystemColors.Window;
+            }
         }
     }
 
@@ -422,6 +452,7 @@ public class DarkNet: IDarkNet {
                 _effectiveProcessThemeIsDark = value;
                 EffectiveCurrentProcessThemeIsDarkChanged?.Invoke(this, value);
             }
+
         }
     }
 
