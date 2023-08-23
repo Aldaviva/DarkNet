@@ -1,0 +1,53 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net6.0-windows</TargetFramework>
+        <Nullable>enable</Nullable>
+        <UseWPF>true</UseWPF>
+        <RootNamespace>darknet_demo_wpf_2</RootNamespace>
+        <IsPackable>false</IsPackable>
+        <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+        <ApplicationIcon>icon.ico</ApplicationIcon>
+        <RollForward>major</RollForward>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Remove="icon.png" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Content Include="icon.ico" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\darknet\DarkNet.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Resource Include="icon.png" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Compile Update="MainWindow.xaml.cs">
+            <SubType>Code</SubType>
+        </Compile>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Page Update="MainWindow.xaml">
+            <SubType>Designer</SubType>
+        </Page>
+        <Page Update="Skins\Panel.Dark.xaml">
+          <Generator>MSBuild:Compile</Generator>
+          <XamlRuntime>Wpf</XamlRuntime>
+          <SubType>Designer</SubType>
+        </Page>
+        <Page Update="Skins\Panel.Light.xaml">
+          <Generator>MSBuild:Compile</Generator>
+          <XamlRuntime>Wpf</XamlRuntime>
+          <SubType>Designer</SubType>
+        </Page>
+    </ItemGroup>
+
+</Project>
