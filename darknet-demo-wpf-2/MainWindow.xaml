@@ -1,0 +1,32 @@
+﻿<Window x:Class="darknet_demo_wpf_2.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="WPF demo - .NET 6 - DarkNet" Height="450" Width="800" Icon="/icon.png" Style="{DynamicResource windowStyle}">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!--
+                This will be replaced with the correct skin to match the title bar theme by SkinManager
+                Also, "light" is more DesignTime-friendly
+                -->
+                <ResourceDictionary Source="Skins/Skin.Light.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+            <!--Place all your window resources here (inside ResourceDictionary)-->
+        </ResourceDictionary>
+    </Window.Resources>
+    <Grid>
+        <StackPanel Orientation="Vertical">
+            <Label Content="Try changing your color mode in Windows Settings to see this app's title bar, menu, and client area react." />
+            <Label Content="Also try clicking checkbox in both windows to see how they change theme independently." />
+            <CheckBox x:Name="darkModeCheckbox" Content="Dark mode" Click="onDarkModeCheckboxChanged" IsThreeState="True" IsChecked="{x:Null}" />
+            <StackPanel Name="SpecialPanel" Margin="20" Orientation="Horizontal" HorizontalAlignment="Center">
+                <Label Margin="10" Content="This panel's theme is set separately"></Label>
+                <CheckBox Margin="10" x:Name="darkModePanelCheckbox" Content="Dark mode this panel" Click="onDarkModePanelCheckboxChanged" IsThreeState="True" IsChecked="{x:Null}" />
+            </StackPanel>
+        </StackPanel>
+
+    </Grid>
+</Window>
